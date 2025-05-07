@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-# """
-# AquiferTest class for pumping/slug test analysis.
-#
-# It includes methods for initializing the aquifer test, validating its properties,
-# and calculating transmissivity and storage coefficient.
-#
-# """
+"""
+AquiferTest class for pumping/slug test analysis.
+
+It includes methods for initializing the aquifer test, validating its properties,
+and calculating transmissivity and storage coefficient.
+
+"""
 
 
 from typing import Dict, Any

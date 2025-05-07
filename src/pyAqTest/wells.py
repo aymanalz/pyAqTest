@@ -209,7 +209,7 @@ class ObservationWell(Well):
         )
 
 
-class SlugTestWell(Well):
+class SlugWell(Well):
     def __init__(
         self,
         well_id: str,
