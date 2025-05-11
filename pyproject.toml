@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "gw_pump_test"
+name = "pyAqTest"
 version = "0.1.0"
 description = "A toolbox to analyse pump test data and estimate hydraulic properties."
 readme = "README.rst"
@@ -31,9 +31,9 @@ dev = [
 
 [project.urls]
 
-bugs = "https://github.com/aymanalz/gw_pump_test/issues"
-changelog = "https://github.com/aymanalz/gw_pump_test/blob/master/changelog.md"
-homepage = "https://github.com/aymanalz/gw_pump_test"
+bugs = "https://github.com/aymanalz/pytestaq/issues"
+changelog = "https://github.com/aymanalz/pytestaq/blob/master/changelog.md"
+homepage = "https://github.com/aymanalz/pytestaq"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
