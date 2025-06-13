@@ -39,7 +39,8 @@ slug_well = SlugWell(
     screen_top_depth= 28.54,
     head = df['Head'].values,
     time = df['Time'].values,
-    slug_volume=0.1
+    slug_volume=0.1,
+    is_recovery_data=False,
 )
 print(slug_well)
 

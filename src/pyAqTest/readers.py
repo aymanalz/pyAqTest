@@ -1,4 +1,5 @@
-""" A module that provides helpers to read slug test data"""
+"""A module that provides helpers to read slug test data"""
+
 import pandas as pd
 from bs4 import BeautifulSoup
 
@@ -33,7 +34,7 @@ def extract_table_from_insitu_html_file(html_file_path):
         df.append(val)
 
     df = pd.DataFrame(df, columns=header)
-    df["Date Time"] = pd.to_datetime(df["Date Time"])
+    df["Date Time"] = pd.to_datetime(df["Date Time"], format='mixed')
 
     for col in df.columns:
         for word in ["Pressure", "Temperature", "Depth"]:
@@ -51,7 +52,7 @@ if __name__ == "__main__":
 
     # read insitu html file
     if TEST_EXTRACT_TABLE_FROM_HTML:
-        HTML_FILE_PATH  = (
+        HTML_FILE_PATH = (
             r"C:\workspace\projects\pump_tests\6173_Slug Test XD Data\\"
             r"VuSitu_2023-10-02_11-46-04_PM-test_Log_Well1-wet-test.htm"
         )

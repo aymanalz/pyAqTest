@@ -11,7 +11,9 @@ console = Console()
 @app.command()
 def main():
     """Console script for pyAqTest."""
-    console.print("Replace this message by putting your code into " "pyAqTest.cli.main")
+    console.print(
+        "myReplace this message by putting your code into " "pyAqTest.cli.main"
+    )
     console.print("See Typer documentation at https://typer.tiangolo.com/")
 
 

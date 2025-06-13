@@ -61,3 +61,6 @@ module = "tests.*"
 allow_untyped_defs = true
 disable_error_code = "attr-defined"
 
+[project.scripts]
+mycli = "cli:main"
+
