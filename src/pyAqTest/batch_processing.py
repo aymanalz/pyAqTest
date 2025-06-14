@@ -20,8 +20,6 @@ The standard format is csv file that should include the following columns:
 """
 
 def run_batch(batch_data, output_dir):
-
-
     # check if df_fn is a dataframe or a file name
     if isinstance(batch_data, pd.DataFrame):
         df = batch_data  # assume it is a dataframe
@@ -45,16 +43,16 @@ def run_batch(batch_data, output_dir):
         test_type = row.get('test_type')
         aquifer_name = row.get('aquifer_name')
         aquifer_type = row.get('aquifer_type')
-        aquifer_thickness = row.get('aquifer_thickness')
-        water_table_depth = row.get('water_table_depth')
-        anisotropy = row.get('anisotropy')
+        aquifer_thickness = float(row.get('aquifer_thickness'))
+        water_table_depth = float(row.get('water_table_depth'))
+        anisotropy = float(row.get('anisotropy'))
         well_name = row.get('well_name')
-        well_radius = row.get('well_radius')
-        casing_radius = row.get('casing_radius')
-        screen_length = row.get('screen_length')
-        screen_top_depth = row.get('screen_top_depth')
+        well_radius = float(row.get('well_radius'))
+        casing_radius = float(row.get('casing_radius'))
+        screen_length = float(row.get('screen_length'))
+        screen_top_depth = float(row.get('screen_top_depth'))
         test_data_file = row.get('test_data_file')
-        slug_volume = row.get('slug_volume', pd.NA)  # default slug volume if not provided
+        slug_volume = float(row.get('slug_volume', pd.NA))  # default slug volume if not provided
 
         # load the test data
         if not os.path.exists(test_data_file):
@@ -83,6 +81,9 @@ def run_batch(batch_data, output_dir):
             anisotropy= anisotropy,
         )
 
+        test_data['Time'] = pd.to_datetime(test_data['Time'])
+        test_data['Time'] = (test_data['Time'] - test_data['Time'].values[0]).dt.total_seconds()
+
         slug_well = SlugWell(
             name=well_name,
             well_radius=well_radius,
@@ -92,7 +93,7 @@ def run_batch(batch_data, output_dir):
             head = test_data['Head'].values,
             time = test_data['Time'].values,
             slug_volume= slug_volume,
-            is_recovery_data=False, # rod
+            is_recovery_data=True, # rod
         )
 
         slug_test = Bouwer_Rice_1976(
@@ -105,8 +106,8 @@ def run_batch(batch_data, output_dir):
         plots_dir = os.path.join(output_dir, 'fit_plots')
         if not(os.path.isdir(plots_dir)):
             os.makedirs(plots_dir)
-        fig_file = os.path.join(plots_dir, test_id+".pdf")
-        slug_test.viz_fig.savefig(fig_file, format="pdf")
+        fig_file = os.path.join(plots_dir, test_id+".png")
+        slug_test.viz_fig.savefig(fig_file, format="png")
 
         df_res = pd.concat([pd.Series(slug_test.fitting_statistics),
                               pd.Series(slug_test.estimated_parameters)]

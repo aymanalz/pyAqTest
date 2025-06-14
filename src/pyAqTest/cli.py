@@ -1,20 +1,227 @@
-"""Console script for pyAqTest."""
+import os
+import shutil
+from os import mkdir
 
-import pyAqTest
+import pandas as pd
 import typer
+from pathlib import Path
 from rich.console import Console
+from rich.text import Text
+from rich.panel import Panel
+from rich.table import Table
+
+import pyAqTest.utils
 
 app = typer.Typer()
 console = Console()
 
 
+
 @app.command()
 def main():
-    """Console script for pyAqTest."""
-    console.print(
-        "myReplace this message by putting your code into " "pyAqTest.cli.main"
+    """Show banner."""
+    clear_screen()
+    banner_text = Text("Slug Test Analysis", style="bold magenta", justify="center")
+    console.rule("[bold green]Welcome")
+    console.print(banner_text)
+    console.rule()
+
+
+    # get folder of htm files
+    while True:
+        slug_folder = typer.prompt("📂 Enter the path to the slug test inSitue htm folder")
+        if os.path.isdir(slug_folder):
+            console.print(f"[bold green]✅ Folder found:[/] {slug_folder}")
+            htm_files = os.listdir(slug_folder)
+            htm_files = [f for f in htm_files if f.endswith(".htm")]
+            console.print(f"📄 Number of files found is {len(htm_files)} ...")
+            break
+        else:
+            console.print(f"[bold red]❌ Error:[/] Folder not found at [yellow]{slug_folder}[/]")
+            console.print("Try again ...")
+
+    # get output folder
+    while True:
+        output_dir = typer.prompt(f"\n\nEnter the path for the folder where the analysis results will be saved.. ")
+        if os.path.isdir(output_dir):
+            console.print(f"Folder exists:{output_dir}, Do you want to remove it❓")
+            yes_no = typer.prompt(f"y|n?")
+            if 'n' in yes_no:
+                continue
+            if 'y' in yes_no:
+                shutil.rmtree(output_dir)
+                console.print(f"Folder {output_dir} removed successfully..")
+
+        os.makedirs(output_dir)
+        console.print(f"Empty Folder {output_dir}  is created at {os.path.abspath(output_dir)}")
+        break
+
+    #extract csv from html
+    console.print(f"\n\n⏳ Working on extracting slug test transient data... ")
+    slug_csv_dir = os.path.join(output_dir, "test_csv_files")
+    mkdir(slug_csv_dir)
+    skip_word = "DRY"
+    pyAqTest.utils.in_situ_tests_to_csv(
+        input_folder=slug_folder,
+        output_folder=output_dir,
+        skip_word=skip_word,
+        file_extension="htm",
+        slug_data_folder=slug_csv_dir,
     )
-    console.print("See Typer documentation at https://typer.tiangolo.com/")
+    n_csv_files = len(os.listdir(slug_csv_dir))
+    console.print(f" 🟢 {n_csv_files} csv files with slug recovery data were generated at {slug_csv_dir}")
+
+    # Batch file entry
+    console.print(f"\n\n📦 To implement batch slug processing, you will need a csv file with tests information needed.")
+    console.print(f"📦 Here is an example ...\n\n")
+    get_slug_data_example()
+
+    #
+    while True:
+        batch_file = typer.prompt(f"\n\nEnter the batch run file .. ")
+        if not(os.path.isfile(batch_file)):
+            console.print("❌File does not exist ...")
+            continue
+        if batch_file.lower().endswith(".csv"):
+            break
+        else:
+            print("This is NOT an csv file.")
+            continue
+
+    console.print(f"\n\n 🔄 Running the slug test analysis ...")
+
+    output_dir_slug = os.path.join(output_dir, "fit_results")
+    batch_data = pd.read_csv(batch_file)
+
+    mask = batch_data['field'] == "test_data_file"
+    for col in batch_data.columns:
+        if 'field' in col:
+            continue
+        nm = batch_data.loc[mask, col].values[0]
+        nm = os.path.join(slug_csv_dir, nm)
+        batch_data.loc[mask, col] = nm
+    print(batch_data.iloc[:, :5])
+    batch_data = batch_data.set_index('field').transpose()
+
+
+
+    df_results = pyAqTest.run_batch(batch_data=batch_data,
+                           output_dir=output_dir
+                           )
+    fn_results = os.path.join(output_dir, "estimated_conductivity.csv")
+    fn_plots = os.path.join(output_dir, "fit_plots")
+    df_results.to_csv(fn_results)
+    console.print(f"\n\n✅ Analysis completed ...")
+    console.print(f"✅ Estimated Parameters can be found at {fn_results}...")
+    console.print(f"✅ Fitting plots can be found at {fn_plots}...")
+
+
+def get_slug_data_example():
+    columns = [
+        "test_id", "test_type", "aquifer_name", "aquifer_type", "aquifer_thickness",
+        "anisotropy", "water_table_depth", "well_name", "well_radius", "casing_radius",
+        "screen_length", "screen_top_depth", "test_data_file", "ground_surface_elevation", "slug_volume"
+    ]
+
+    data = [
+        {
+            "test_id": "test_1",
+            "test_type": "slug",
+            "aquifer_name": "Aquifer_1",
+            "aquifer_type": "unconfined",
+            "aquifer_thickness": "50.6",
+            "anisotropy": "1",
+            "water_table_depth": "10",
+            "well_name": "Well_1",
+            "well_radius": "0.125",
+            "casing_radius": "0.064",
+            "screen_length": "1.52",
+            "screen_top_depth": "28.54",
+            "test_data_file": "test_1.csv",
+            "ground_surface_elevation": "100",
+            "slug_volume": ""
+        },
+        {
+            "test_id": "test_2",
+            "test_type": "slug",
+            "aquifer_name": "Aquifer_1",
+            "aquifer_type": "unconfined",
+            "aquifer_thickness": "50.6",
+            "anisotropy": "1",
+            "water_table_depth": "10",
+            "well_name": "Well_2",
+            "well_radius": "0.125",
+            "casing_radius": "0.064",
+            "screen_length": "1.52",
+            "screen_top_depth": "28.54",
+            "test_data_file": "test_2.csv",
+            "ground_surface_elevation": "100",
+            "slug_volume": ""
+        },
+        {
+            "test_id": "test_3",
+            "test_type": "slug",
+            "aquifer_name": "Aquifer_1",
+            "aquifer_type": "unconfined",
+            "aquifer_thickness": "50.6",
+            "anisotropy": "1",
+            "water_table_depth": "10",
+            "well_name": "Well_3",
+            "well_radius": "0.125",
+            "casing_radius": "0.064",
+            "screen_length": "1.52",
+            "screen_top_depth": "28.54",
+            "test_data_file": "test_3.csv",
+            "ground_surface_elevation": "100",
+            "slug_volume": ""
+        },
+    ]
+
+    # Create table with first column as field names
+    table = Table(title="Slug Test Example", title_style="bold blue")
+
+    # Add first column: field names
+    table.add_column(" ", style="cyan", no_wrap=True)
+
+    # Add one column per data record, use test_id for header
+    for iid, d in enumerate(data):
+        table.add_column(str(iid+1), style="white")
+
+    # For each field (column in original), add a row with field name and all values
+    for field in columns:
+        row = [field]  # first cell is the field name
+        for d in data:
+            row.append(str(d.get(field, "")))
+        table.add_row(*row)
+
+    console.print(table)
+
+
+def clear_screen():
+    """Clears the console screen."""
+    # For Windows
+    if os.name == 'nt':
+        _ = os.system('cls')
+    # For macOS and Linux (Unix-like systems)
+    else:
+        _ = os.system('clear')
+
+# @app.command()
+# def analyze():
+#     """Prompt for a slug test file and analyze it."""
+#     file_input = typer.prompt("📂 Enter the path to the slug test file")
+#     file_path = Path(file_input)
+#
+#     if not file_path.exists():
+#         console.print(f"[bold red]❌ Error:[/] File not found at [yellow]{file_path}[/]")
+#         raise typer.Exit(code=1)
+#
+#     console.print(f"[bold green]✅ File found:[/] {file_path}")
+#     console.print("[cyan]🔍 Starting analysis...[/]")
+#
+#     # Replace this with real logic
+#     # e.g., pyAqTest.analyze(file_path)
+#     console.print("[bold magenta]🎉 Done! Analysis complete.[/]")
 
 
 if __name__ == "__main__":

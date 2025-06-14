@@ -18,7 +18,7 @@ classifiers = [
 ]
 license = {text = "MIT license"}
 dependencies = [
-  
+
 ]
 
 [project.optional-dependencies]
@@ -62,5 +62,5 @@ allow_untyped_defs = true
 disable_error_code = "attr-defined"
 
 [project.scripts]
-mycli = "cli:main"
+mycli = "pyAqTest.cli:main"
 

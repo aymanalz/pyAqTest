@@ -133,15 +133,20 @@ class Bouwer_Rice_1976(AquiferTestBase):
            d = 0
 
         if self.slug_well.is_recovery_data:
-            rec_depth = head
+            rec_depth = np.abs(head-head[-1])
             rec_time = time
         else:
             rec_depth, rec_time = self.isolate_recovery(time, head, window_size=10)
 
+        min_non_zero = min(abs(x) for x in rec_depth if x != 0)
+        rec_depth[rec_depth==0] = min_non_zero
         if H0 is None:
             H0 = rec_depth[0]
 
-        fit_result = self.fit(x=rec_time, y=np.log(rec_depth / H0))
+        h_h0 = rec_depth / H0
+        mask = np.logical_and(h_h0>=0.1, h_h0<=0.3)
+
+        fit_result = self.fit(x=rec_time[mask], y=np.log(h_h0[mask]))
 
         # plot
         fig = plt.figure()
@@ -153,8 +158,7 @@ class Bouwer_Rice_1976(AquiferTestBase):
         plt.legend()
         plt.title(f"Linear Fit for test {self.name}")
         self.viz_fig = fig
-
-
+        plt.close()
 
         rw_star = rw * (anis**0.5)
         x = np.log10(b / rw_star)

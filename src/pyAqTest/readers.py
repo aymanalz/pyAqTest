@@ -3,10 +3,6 @@
 import pandas as pd
 from bs4 import BeautifulSoup
 
-#
-# def read_table(fn, num_skip_rows=0, delimiter=" ", time_col=0, displace_col=1):
-#     pass
-
 
 def extract_table_from_insitu_html_file(html_file_path):
     """

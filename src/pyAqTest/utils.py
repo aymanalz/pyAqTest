@@ -1,7 +1,12 @@
 import os
+import shutil
+import re
+
 import pandas as pd
 import numpy as np
 from typing import List, Dict, Any
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
@@ -57,7 +62,7 @@ def extract_wet_period(df, window_size=20, debug={"flg": False}):
     # debug
     if debug["flg"]:
         plot_folder = debug["plot_folder"]
-        fn = debug["file_name"]  
+        fn = debug["file_name"]
         fn = os.path.splitext(fn)[0] + ".png"
         if not os.path.exists(plot_folder):
             os.makedirs(plot_folder)
@@ -84,18 +89,16 @@ def extract_wet_period(df, window_size=20, debug={"flg": False}):
 def in_situ_tests_to_csv(
     input_folder: str,
     output_folder: str,
-    output_file: str,
     skip_word: str,
     file_extension: str,
     slug_data_folder: str,
 ) -> None:
     """
     Convert a set of in-situ tests data to CSV format that is suitable for batch processing.
-
     The following are done by this function:
-    1. Read the input folder and get all the files in it. Skip any file that contains the skip_word in its name.
+    1. Read the input folder and get all the files in it. Skip any file that contains the
+       skip_word in its name.
     2. For each file, read the data, extract test_data (time, head)
-
     """
 
     # 1) Get the files with slug data
@@ -105,8 +108,7 @@ def in_situ_tests_to_csv(
 
     # 2) Read the data from each file
     for slug_file in tqdm(slug_files, desc="Processing files"):
-        #print(f"Processing file: {slug_file}")
-        # Read the file
+
         file_path = os.path.join(input_folder, slug_file)
         df = readers.extract_table_from_insitu_html_file(file_path)
 
@@ -121,7 +123,6 @@ def in_situ_tests_to_csv(
                 },
             )
 
-            # Save the data to CSV
             df_ = pd.DataFrame(
                 {
                     "Time": recovery_time,
@@ -138,29 +139,63 @@ def in_situ_tests_to_csv(
                 index=False,
             )
         except:
-            print(f"Error processing file: {slug_file} ")      
+            print(f"  Error processing file: {slug_file} ")
             continue
-    
-        
+
+def extract_well_name(text):
+    if "WET" in text:
+        match = re.search(r'Log_(.*?)_WET_', text)
+    elif "wet" in text:
+        match = re.search(r'Log_(.*?)-wet', text)
+    else:
+        return None
+
+    return match.group(1) if match else None
+
+def rename_htm_files(input_folder, output_folder,
+                     file_extension, skip_word
+                     ):
+    # 1) Get the files with slug data
+    slug_files = os.listdir(input_folder)
+    slug_files = [f for f in slug_files if skip_word not in f]
+    slug_files = [f for f in slug_files if f.endswith(file_extension)]
+
+    for file in slug_files:
+        if "WET" in file or "wet" in file:
+            well_name = extract_well_name(file)
+            fn1 = os.path.join(input_folder, file)
+            fn2 = os.path.join(output_folder, well_name+".htm")
+            shutil.copy(fn1, fn2)
+        else:
+            print(f" Skipped -- {file}")
 
 
 
-
-    xx = 1       
 
 
 
 if __name__ == "__main__":
     # Example usage
-    input_folder = r"C:\workspace\projects\pump_tests\6173_Slug Test XD Data"
-    output_folder = r"C:\workspace\projects\pump_tests\gw_pump_test"
-    output_csv_file = r"C:\workspace\projects\pump_tests\gw_pump_test\slug_test.csv"
+    debug1 = False
     skip_word = "DRY"
-    in_situ_tests_to_csv(
+    input_folder = r"C:\workspace\projects\pump_tests\6173_Slug Test XD Data"
+    if debug1:
+
+        output_folder = r"C:\workspace\projects\pump_tests\gw_pump_test"
+        output_csv_file = r"C:\workspace\projects\pump_tests\gw_pump_test\slug_test.csv"
+
+        in_situ_tests_to_csv(
+            input_folder=input_folder,
+            output_folder=output_folder,
+            skip_word=skip_word,
+            file_extension="htm",
+            slug_data_folder=output_folder,
+        )
+
+    output_folder = r"C:\workspace\projects\pump_tests\gw_pump_test\insitu_csv"
+    rename_htm_files(
         input_folder=input_folder,
         output_folder=output_folder,
-        output_file=output_csv_file,
         skip_word=skip_word,
-        file_extension="htm",
-        slug_data_folder=output_folder,
+        file_extension="htm"
     )

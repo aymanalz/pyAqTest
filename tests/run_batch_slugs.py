@@ -43,9 +43,6 @@ for i in range(number_of_tests):
     df.to_csv(test_data_file, index=False)
 
 
-
-
-
 # prepare synthetic test data
 df_batch = pd.DataFrame(columns= ['test_id', 'test_type',
                                   'aquifer_name', 'aquifer_type', 'aquifer_thickness','anisotropy',
