@@ -62,5 +62,5 @@ allow_untyped_defs = true
 disable_error_code = "attr-defined"
 
 [project.scripts]
-mycli = "pyAqTest.cli:main"
+aqtest = "pyAqTest.cli:main"
 

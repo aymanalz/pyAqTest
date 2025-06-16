@@ -100,7 +100,8 @@ def main():
         nm = batch_data.loc[mask, col].values[0]
         nm = os.path.join(slug_csv_dir, nm)
         batch_data.loc[mask, col] = nm
-    print(batch_data.iloc[:, :5])
+
+    table2console(console, batch_data.set_index('field')[['1','2','3']])
     batch_data = batch_data.set_index('field').transpose()
 
 
@@ -111,11 +112,50 @@ def main():
     fn_results = os.path.join(output_dir, "estimated_conductivity.csv")
     fn_plots = os.path.join(output_dir, "fit_plots")
     df_results.to_csv(fn_results)
+
     console.print(f"\n\n✅ Analysis completed ...")
     console.print(f"✅ Estimated Parameters can be found at {fn_results}...")
     console.print(f"✅ Fitting plots can be found at {fn_plots}...")
+    console.print("[bold blue]DataFrame Content:[/bold blue]")
+    pd.set_option("display.float_format", "{:.2f}".format)
+    table2console(console, df_results.set_index('test_name'))
 
+def table2console(console, df: pd.DataFrame):
+    """
+    Prints a Pandas DataFrame to the console using the Rich library for enhanced
+    and formatted output. The index is included and styled in light blue.
+    """
+    if not isinstance(df, pd.DataFrame):
+        console.print("[red]Error: Input must be a Pandas DataFrame.[/red]")
+        return
 
+    console.print("\n[bold green]DataFrame Content (using rich.table.Table for custom styling):[/bold green]")
+
+    # Create the Rich table
+    table = Table(show_header=True, header_style="bold magenta", row_styles=["none", "dim"])
+
+    # Add index column first
+    table.add_column("Index", style="bright_blue", no_wrap=True)
+
+    # Add the rest of the DataFrame columns
+    for col in df.columns:
+        table.add_column(str(col), justify="left")
+
+    # Add rows with index
+    for idx, row in df.iterrows():
+        index_str = f"[bright_blue]{idx}[/bright_blue]"
+        table.add_row(index_str, *[str(adaptive_format(item,3)) for item in row.values])
+
+    console.print(table)
+
+def adaptive_format(x, decimals=2):
+    """Format float adaptively: fixed decimals or scientific if too small."""
+    if isinstance(x, str):
+        return x  # Skip strings
+    if abs(x) >= 10**-decimals:
+        return f"{x:.{decimals}f}"
+    else:
+        return f"{x:.1e}"
 def get_slug_data_example():
     columns = [
         "test_id", "test_type", "aquifer_name", "aquifer_type", "aquifer_thickness",
