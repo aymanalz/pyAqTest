@@ -11,10 +11,10 @@ from rich.panel import Panel
 from rich.table import Table
 
 import pyAqTest.utils
+from art import *
 
 app = typer.Typer()
 console = Console()
-
 
 
 @app.command()
@@ -22,14 +22,20 @@ def main():
     """Show banner."""
     clear_screen()
     banner_text = Text("Slug Test Analysis", style="bold magenta", justify="center")
-    console.rule("[bold green]Welcome")
+    tit = text2art("AqTest", font="tarty1")
+    indent = 50
+    for line in tit.splitlines():
+        console.print(" " * indent + line)
+
+    console.rule("[bold green]AqTest")
     console.print(banner_text)
     console.rule()
 
-
     # get folder of htm files
     while True:
-        slug_folder = typer.prompt("📂 Enter the path to the slug test inSitue htm folder")
+        slug_folder = typer.prompt(
+            "📂 Enter the path to the slug test inSitue htm folder"
+        )
         if os.path.isdir(slug_folder):
             console.print(f"[bold green]✅ Folder found:[/] {slug_folder}")
             htm_files = os.listdir(slug_folder)
@@ -37,27 +43,49 @@ def main():
             console.print(f"📄 Number of files found is {len(htm_files)} ...")
             break
         else:
-            console.print(f"[bold red]❌ Error:[/] Folder not found at [yellow]{slug_folder}[/]")
+            console.print(
+                f"[bold red]❌ Error:[/] Folder not found at [yellow]{slug_folder}[/]"
+            )
             console.print("Try again ...")
+    
+    # get units
+    while True:
+        length_unit = typer.prompt(
+            "  - Enter length unit (m or ft):"
+        )
+        if length_unit.lower() in ["m", "ft"]:
+            console.print(f"[bold green]✅ Length unit set to:[/] {length_unit}")
+            break
+    while True:
+        time_unit = typer.prompt(
+            "  - Enter time unit (s, min, or hr):"
+        )
+        if time_unit.lower() in ["s", "min", "hr"]:
+            console.print(f"[bold green]✅ Time unit set to:[/] {time_unit}")
+            break
 
     # get output folder
     while True:
-        output_dir = typer.prompt(f"\n\nEnter the path for the folder where the analysis results will be saved.. ")
+        output_dir = typer.prompt(
+            f"\n\nEnter the path for the folder where the analysis results will be saved.. "
+        )
         if os.path.isdir(output_dir):
             console.print(f"Folder exists:{output_dir}, Do you want to remove it❓")
             yes_no = typer.prompt(f"y|n?")
-            if 'n' in yes_no:
+            if "n" in yes_no:
                 continue
-            if 'y' in yes_no:
+            if "y" in yes_no:
                 shutil.rmtree(output_dir)
                 console.print(f"Folder {output_dir} removed successfully..")
 
         os.makedirs(output_dir)
-        console.print(f"Empty Folder {output_dir}  is created at {os.path.abspath(output_dir)}")
+        console.print(
+            f"Empty Folder {output_dir}  is created at {os.path.abspath(output_dir)}"
+        )
         break
 
-    #extract csv from html
-    console.print(f"\n\n⏳ Working on extracting slug test transient data... ")
+    # extract csv from html
+    console.print(f"\n\n⏳ Working on extracting slug test recovery data... ")
     slug_csv_dir = os.path.join(output_dir, "test_csv_files")
     mkdir(slug_csv_dir)
     skip_word = "DRY"
@@ -69,17 +97,22 @@ def main():
         slug_data_folder=slug_csv_dir,
     )
     n_csv_files = len(os.listdir(slug_csv_dir))
-    console.print(f" 🟢 {n_csv_files} csv files with slug recovery data were generated at {slug_csv_dir}")
+    console.print(
+        f" 🟢 {n_csv_files} csv files with slug recovery data were generated at {slug_csv_dir}"
+    )
+    console.print("\n\n" + 25 * " " + 30 * " ░░░", style="sandy_brown")
 
     # Batch file entry
-    console.print(f"\n\n📦 To implement batch slug processing, you will need a csv file with tests information needed.")
+    console.print(
+        f"\n\n📦 To implement batch slug processing, you will need a csv file with tests information needed."
+    )
     console.print(f"📦 Here is an example ...\n\n")
     get_slug_data_example()
 
     #
     while True:
         batch_file = typer.prompt(f"\n\nEnter the batch run file .. ")
-        if not(os.path.isfile(batch_file)):
+        if not (os.path.isfile(batch_file)):
             console.print("❌File does not exist ...")
             continue
         if batch_file.lower().endswith(".csv"):
@@ -93,34 +126,40 @@ def main():
     output_dir_slug = os.path.join(output_dir, "fit_results")
     batch_data = pd.read_csv(batch_file)
 
-    mask = batch_data['field'] == "test_data_file"
+    mask = batch_data["field"] == "test_data_file"
     for col in batch_data.columns:
-        if 'field' in col:
+        if "field" in col:
             continue
         nm = batch_data.loc[mask, col].values[0]
         nm = os.path.join(slug_csv_dir, nm)
         batch_data.loc[mask, col] = nm
 
-    table2console(console, batch_data.set_index('field')[['1','2','3']])
-    batch_data = batch_data.set_index('field').transpose()
-
-
-
-    df_results = pyAqTest.run_batch(batch_data=batch_data,
-                           output_dir=output_dir
-                           )
+    table2console(
+        console,
+        batch_data.set_index("field")[["1", "2", "3"]],
+        title="First three tests in the batch processing table!",
+    )
+    batch_data = batch_data.set_index("field").transpose()
+    df_results = pyAqTest.run_batch(batch_data=batch_data, output_dir=output_dir, time_unit=time_unit, length_unit=length_unit)
     fn_results = os.path.join(output_dir, "estimated_conductivity.csv")
     fn_plots = os.path.join(output_dir, "fit_plots")
     df_results.to_csv(fn_results)
 
+    console.print("\n\n" + 25 * " " + 30 * " ░░░", style="sandy_brown")
+
     console.print(f"\n\n✅ Analysis completed ...")
     console.print(f"✅ Estimated Parameters can be found at {fn_results}...")
     console.print(f"✅ Fitting plots can be found at {fn_plots}...")
-    console.print("[bold blue]DataFrame Content:[/bold blue]")
+    console.print("[bold blue]Estimated Parameters :[/bold blue]")
     pd.set_option("display.float_format", "{:.2f}".format)
-    table2console(console, df_results.set_index('test_name'))
+    table2console(
+        console,
+        df_results.set_index("test_name"),
+        title="Estimated Parameters & fit metrics",
+    )
 
-def table2console(console, df: pd.DataFrame):
+
+def table2console(console, df: pd.DataFrame, title):
     """
     Prints a Pandas DataFrame to the console using the Rich library for enhanced
     and formatted output. The index is included and styled in light blue.
@@ -129,10 +168,12 @@ def table2console(console, df: pd.DataFrame):
         console.print("[red]Error: Input must be a Pandas DataFrame.[/red]")
         return
 
-    console.print("\n[bold green]DataFrame Content (using rich.table.Table for custom styling):[/bold green]")
+    console.print(f"\n[bold green]{title}:[/bold green]")
 
     # Create the Rich table
-    table = Table(show_header=True, header_style="bold magenta", row_styles=["none", "dim"])
+    table = Table(
+        show_header=True, header_style="bold magenta", row_styles=["none", "dim"]
+    )
 
     # Add index column first
     table.add_column("Index", style="bright_blue", no_wrap=True)
@@ -144,9 +185,12 @@ def table2console(console, df: pd.DataFrame):
     # Add rows with index
     for idx, row in df.iterrows():
         index_str = f"[bright_blue]{idx}[/bright_blue]"
-        table.add_row(index_str, *[str(adaptive_format(item,3)) for item in row.values])
+        table.add_row(
+            index_str, *[str(adaptive_format(item, 3)) for item in row.values]
+        )
 
     console.print(table)
+
 
 def adaptive_format(x, decimals=2):
     """Format float adaptively: fixed decimals or scientific if too small."""
@@ -156,11 +200,25 @@ def adaptive_format(x, decimals=2):
         return f"{x:.{decimals}f}"
     else:
         return f"{x:.1e}"
+
+
 def get_slug_data_example():
     columns = [
-        "test_id", "test_type", "aquifer_name", "aquifer_type", "aquifer_thickness",
-        "anisotropy", "water_table_depth", "well_name", "well_radius", "casing_radius",
-        "screen_length", "screen_top_depth", "test_data_file", "ground_surface_elevation", "slug_volume"
+        "test_id",
+        "test_type",
+        "aquifer_name",
+        "aquifer_type",
+        "aquifer_thickness",
+        "anisotropy",
+        "water_table_depth",
+        "well_name",
+        "well_radius",
+        "casing_radius",
+        "screen_length",
+        "screen_top_depth",
+        "test_data_file",
+        "ground_surface_elevation",
+        "slug_volume",
     ]
 
     data = [
@@ -179,7 +237,7 @@ def get_slug_data_example():
             "screen_top_depth": "28.54",
             "test_data_file": "test_1.csv",
             "ground_surface_elevation": "100",
-            "slug_volume": ""
+            "slug_volume": "",
         },
         {
             "test_id": "test_2",
@@ -196,7 +254,7 @@ def get_slug_data_example():
             "screen_top_depth": "28.54",
             "test_data_file": "test_2.csv",
             "ground_surface_elevation": "100",
-            "slug_volume": ""
+            "slug_volume": "",
         },
         {
             "test_id": "test_3",
@@ -213,7 +271,7 @@ def get_slug_data_example():
             "screen_top_depth": "28.54",
             "test_data_file": "test_3.csv",
             "ground_surface_elevation": "100",
-            "slug_volume": ""
+            "slug_volume": "",
         },
     ]
 
@@ -225,7 +283,7 @@ def get_slug_data_example():
 
     # Add one column per data record, use test_id for header
     for iid, d in enumerate(data):
-        table.add_column(str(iid+1), style="white")
+        table.add_column(str(iid + 1), style="white")
 
     # For each field (column in original), add a row with field name and all values
     for field in columns:
@@ -240,11 +298,12 @@ def get_slug_data_example():
 def clear_screen():
     """Clears the console screen."""
     # For Windows
-    if os.name == 'nt':
-        _ = os.system('cls')
+    if os.name == "nt":
+        _ = os.system("cls")
     # For macOS and Linux (Unix-like systems)
     else:
-        _ = os.system('clear')
+        _ = os.system("clear")
+
 
 # @app.command()
 # def analyze():

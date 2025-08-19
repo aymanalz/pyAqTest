@@ -28,6 +28,8 @@ class Well:
         well_radius: float,
         screen_length: float,
         screen_top_depth: float,
+        length_unit: str = None,
+        time_unit: str = None,
     ) -> None:
         """
         A base class for wells
@@ -49,10 +51,12 @@ class Well:
         self.casing_radius = casing_radius
         self.well_radius = well_radius
         self.screen_top_depth = screen_top_depth
-
-        self.set_default_values()
+        self.length_unit = length_unit
+        self.time_unit = time_unit
+         
         self.validate_casing_radius()
         self.validate_well_type()  # validate well type
+        self.validate_length_and_time_units()
 
     def __str__(self) -> str:
         return (
@@ -114,6 +118,19 @@ class Well:
             return (
                 f"Error: Invalid well type '{self.well_type}'. "
                 f"Valid types are: {', '.join(VALID_WELL_TYPES)}."
+            )
+        return None
+    
+    def validate_length_and_time_units(self) -> Union[None, str]:
+        if self.length_unit not in ["m", "ft"]:
+            return (
+                f"Error: Invalid length unit '{self.length_unit}'. "
+                f"Must be 'm' or 'ft'."
+            )
+        if self.time_unit not in ["s", "min", "h"]:
+            return (
+                f"Error: Invalid time unit '{self.time_unit}'. "
+                f"Must be 's', 'min', or 'h'."
             )
         return None
 
@@ -266,6 +283,8 @@ class SlugWell(Well):
         time: Union[np.array, pd.DataFrame] = None,
         slug_volume: float = None,
         is_recovery_data: bool = False,
+        length_unit: str = "m",
+        time_unit: str = "s"
     ) -> None:
 
         super().__init__(
@@ -276,6 +295,8 @@ class SlugWell(Well):
             well_radius,
             screen_length,
             screen_top_depth,
+            length_unit=length_unit,
+            time_unit=time_unit,
         )
 
         self.well_type = "slug"

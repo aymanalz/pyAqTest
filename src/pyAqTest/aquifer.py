@@ -23,6 +23,8 @@ class Aquifer:
         specific_yield: float = None,
         specific_storage: float = None,
         anisotropy: float = 1.0,
+        length_unit: str = None,
+        time_unit: str = None,
     ) -> None:
         """
         Initialize an Aquifer object.
@@ -47,6 +49,8 @@ class Aquifer:
         self.water_table_depth = water_table_depth
         self.anisotropy = anisotropy
         self.ground_surface_elevation = ground_surface_elevation
+        self.length_unit = length_unit
+        self.time_unit = time_unit
         self.set_default_values()
         self.validate_required_properties()
 
@@ -54,7 +58,9 @@ class Aquifer:
         self.radial_conductivity = radial_conductivity
         self.vertical_conductivity = vertical_conductivity
         self.specific_yield = specific_yield
-        self.specific_storage = specific_storage
+        self.specific_storage = specific_storage       
+        
+
 
     def __str__(self) -> str:
         # todo: fix all units
@@ -149,6 +155,16 @@ class Aquifer:
         for prop in required_properties:
             if getattr(self, prop) is None:
                 raise ValueError(f"Error: {prop} is not set.")
+
+        # valide length and time units
+        if self.length_unit not in ["m", "ft"]:
+            raise ValueError(
+                f"Error: Invalid length unit '{self.length_unit}'. Must be 'm' or 'ft'."
+            )
+        if self.time_unit not in ["s", "min", "h"]:
+            raise ValueError(
+                f"Error: Invalid time unit '{self.time_unit}'. Must be 's', 'min', or 'h'."
+            )
 
     def validate_positive_values(self) -> None:
         if self.saturated_thickness <= 0:

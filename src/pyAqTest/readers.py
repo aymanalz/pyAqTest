@@ -30,7 +30,7 @@ def extract_table_from_insitu_html_file(html_file_path):
         df.append(val)
 
     df = pd.DataFrame(df, columns=header)
-    df["Date Time"] = pd.to_datetime(df["Date Time"], format='mixed')
+    df["Date Time"] = pd.to_datetime(df["Date Time"], format="mixed")
 
     for col in df.columns:
         for word in ["Pressure", "Temperature", "Depth"]:

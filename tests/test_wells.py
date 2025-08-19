@@ -3,6 +3,7 @@ from pyAqTest.wells import Well
 from pyAqTest.wells import PumpingWell
 import pandas as pd
 
+
 def test_well_initialization():
     well = Well(
         name="W1",
@@ -23,6 +24,7 @@ def test_well_initialization():
     assert well.screen_length == 10.0
     assert well.screen_top_depth == 5.0
 
+
 def test_validate_positive_values():
     well = Well(
         name="W2",
@@ -38,6 +40,7 @@ def test_validate_positive_values():
 
     well.casing_radius = -0.1
     assert well.validate_positive_values() == "Error: Casing radius must be positive."
+
 
 def test_validate_casing_radius():
     well = Well(
@@ -57,6 +60,7 @@ def test_validate_casing_radius():
         "Error: Casing radius (0.200 m) must be less than well radius (0.150 m)."
     )
 
+
 def test_validate_well_type():
     well = Well(
         name="W4",
@@ -74,6 +78,7 @@ def test_validate_well_type():
     assert well.validate_well_type() == (
         "Error: Invalid well type 'invalid_type'. Valid types are: pumping, slug, observation."
     )
+
 
 def test_set_default_values():
     well = Well(
@@ -93,7 +98,8 @@ def test_set_default_values():
     assert well.well_radius == 0.15
     assert well.screen_length == 10.0
     assert well.screen_top_depth == 5.0
-    
+
+
 def test_pumping_well_initialization_with_float_rate():
     well = PumpingWell(
         well_id="PW1",
@@ -119,6 +125,7 @@ def test_pumping_well_initialization_with_float_rate():
     assert list(well.pumping_rate.columns) == ["time", "rate"]
     assert well.pumping_rate.iloc[0]["rate"] == 5.0
 
+
 def test_pumping_well_initialization_with_dataframe_rate():
     pumping_rate_df = pd.DataFrame({"time": [0, 10], "rate": [5.0, 5.0]})
     well = PumpingWell(
@@ -143,8 +150,11 @@ def test_pumping_well_initialization_with_dataframe_rate():
     assert well.screen_top_depth == 5.0
     assert well.pumping_rate.equals(pumping_rate_df)
 
+
 def test_pumping_well_invalid_pumping_rate_type():
-    with pytest.raises(ValueError, match="Pumping rate must be a float or a pandas DataFrame."):
+    with pytest.raises(
+        ValueError, match="Pumping rate must be a float or a pandas DataFrame."
+    ):
         PumpingWell(
             well_id="PW3",
             well_type="pumping",
@@ -158,8 +168,12 @@ def test_pumping_well_invalid_pumping_rate_type():
             pumping_period=None,
         )
 
+
 def test_pumping_well_missing_pumping_period_with_float_rate():
-    with pytest.raises(ValueError, match="Error: Pumping period must be provided if pumping rate is a float."):
+    with pytest.raises(
+        ValueError,
+        match="Error: Pumping period must be provided if pumping rate is a float.",
+    ):
         PumpingWell(
             well_id="PW4",
             well_type="pumping",
@@ -173,9 +187,12 @@ def test_pumping_well_missing_pumping_period_with_float_rate():
             pumping_period=None,
         )
 
+
 def test_pumping_well_invalid_dataframe_columns():
     invalid_df = pd.DataFrame({"invalid_col": [0, 10], "rate": [5.0, 5.0]})
-    with pytest.raises(ValueError, match="Error: Pumping rate DataFrame must contain a 'time' column."):
+    with pytest.raises(
+        ValueError, match="Error: Pumping rate DataFrame must contain a 'time' column."
+    ):
         PumpingWell(
             well_id="PW5",
             well_type="pumping",
@@ -189,9 +206,12 @@ def test_pumping_well_invalid_dataframe_columns():
             pumping_period=None,
         )
 
+
 def test_pumping_well_invalid_dataframe_rate_column():
     invalid_df = pd.DataFrame({"time": [0, 10], "invalid_col": [5.0, 5.0]})
-    with pytest.raises(ValueError, match="Error: Pumping rate DataFrame must contain a 'rate' column."):
+    with pytest.raises(
+        ValueError, match="Error: Pumping rate DataFrame must contain a 'rate' column."
+    ):
         PumpingWell(
             well_id="PW6",
             well_type="pumping",

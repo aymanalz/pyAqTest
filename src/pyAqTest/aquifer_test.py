@@ -46,11 +46,11 @@ class AquiferTestBase:
         """
         pass
 
-    def fit(self) -> None:
-        """
-        Fit the aquifer test data to a model.
-        """
-        pass
+    # def fit(self) -> None:
+    #     """
+    #     Fit the aquifer test data to a model.
+    #     """
+    #     pass
 
     def plot(self) -> None:
         """
