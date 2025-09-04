@@ -1,10 +1,7 @@
 import numpy as np
-from networkx.algorithms.smallworld import omega
 from scipy.optimize import curve_fit
-import matplotlib
 
 # matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 
 
 def butler_slug_test_model(t, H0, alpha, beta):

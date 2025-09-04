@@ -5,20 +5,16 @@ import matplotlib
 
 matplotlib.use("TkAgg")
 import numpy as np
-from scipy.special import expi
 import math
 
-import pandas as pd
 from scipy.stats import linregress
 from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
 
 from pyAqTest import Aquifer
-from pyAqTest import PumpingWell, SlugWell, Well, ObservationWell
+from pyAqTest import SlugWell
 from pyAqTest import AquiferTestBase
-from typing import Dict, Any, List
 from pyAqTest.utils import evaluate_regression_fit, harmonize_units, get_static_level
-
 
 
 # todo: think about simplifying the code by assuming that all data is recovery data
@@ -40,7 +36,6 @@ class Bouwer_Rice_1976(AquiferTestBase):
         test_type: str = "slug",
         aquifer: Aquifer = None,
         slug_well: SlugWell = None,
-
     ) -> None:
         super().__init__(name, test_type, aquifer=aquifer, well=slug_well)
         self.name = name
@@ -54,12 +49,12 @@ class Bouwer_Rice_1976(AquiferTestBase):
             self.slug_well.time = self.slug_well.time * 60
         elif self.slug_well.time_unit == "hr":
             self.slug_well.time = self.slug_well.time * 3600
-        self.slug_well.time_unit = 's'  # always in seconds     
+        self.slug_well.time_unit = "s"  # always in seconds
 
     def harmonize_units(self):
-        """ Harmonize the units of the slug test with the aquifer. """
+        """Harmonize the units of the slug test with the aquifer."""
         aquifer_length_unit = self.aquifer.length_unit
-        slug_well_length_unit = self.slug_well.length_unit        
+        slug_well_length_unit = self.slug_well.length_unit
 
         if aquifer_length_unit != slug_well_length_unit:
             # all should be in well length unit
@@ -72,16 +67,17 @@ class Bouwer_Rice_1976(AquiferTestBase):
                 "casing_radius",
                 "well_radius",
             ]
-            
+
             for attr in attribues:
                 if hasattr(self.aquifer, attr):
-                    value = getattr(self.aquifer, attr)                   
+                    value = getattr(self.aquifer, attr)
                     new_value = harmonize_units(
-                        value=value, from_unit=aquifer_length_unit, to_unit=slug_well_length_unit
+                        value=value,
+                        from_unit=aquifer_length_unit,
+                        to_unit=slug_well_length_unit,
                     )
-                    setattr(self.aquifer, attr, new_value)           
-    
-    
+                    setattr(self.aquifer, attr, new_value)
+
     def validate_required_properties(self) -> None:
         """
         Validate required properties of the slug test. This method should ensure that the data
@@ -97,7 +93,7 @@ class Bouwer_Rice_1976(AquiferTestBase):
             raise ValueError("Saturated thickness must be greater than zero.")
         if self.slug_well.casing_radius <= 0:
             raise ValueError("Casing radius must be greater than zero.")
-        
+
         # check length and time units
         if self.slug_well.length_unit not in ["m", "ft"]:
             raise ValueError("Length unit must be either 'm' or 'ft'.")
@@ -188,8 +184,8 @@ class Bouwer_Rice_1976(AquiferTestBase):
 
         # get static level
         static_level = get_static_level(head)
-        dev_static = head - static_level        
-        H0 = dev_static[0]        
+        dev_static = head - static_level
+        H0 = dev_static[0]
         h_normalized = dev_static / H0
 
         # min_non_zero = min(abs(x) for x in rec_depth if x != 0)
@@ -199,7 +195,7 @@ class Bouwer_Rice_1976(AquiferTestBase):
 
         # h_h0 = rec_depth / H0
         mask = np.logical_and(h_normalized >= 0.1, h_normalized <= 0.3)
-        mask2 = np.abs(h_normalized)> 10e-6
+        mask2 = np.abs(h_normalized) > 10e-6
         mask = np.logical_and(mask2, mask)
         fit_result = self.fit(x=time[mask], y=np.log(np.abs(h_normalized[mask])))
 
@@ -223,9 +219,12 @@ class Bouwer_Rice_1976(AquiferTestBase):
         # evaluate model fit
         y_fit = fit_result.slope * time + fit_result.intercept
         fit_states = evaluate_regression_fit(
-            y_obs=h_normalized[mask], y_pred=np.exp(y_fit[mask]), num_predictors=1, verbose=False
+            y_obs=h_normalized[mask],
+            y_pred=np.exp(y_fit[mask]),
+            num_predictors=1,
+            verbose=False,
         )
-        
+
         rw_star = rw * (anis**0.5)
         x = np.log10(b / rw_star)
 
@@ -293,18 +292,18 @@ class Butler_2003(AquiferTestBase):
 
         self.validate_required_properties()
 
-         # harmonize units. Time is always in seconds!
-         # length is well length unit
-        self.harmonize_units()       
+        # harmonize units. Time is always in seconds!
+        # length is well length unit
+        self.harmonize_units()
         if self.slug_well.time_unit == "min":
             self.slug_well.time = self.slug_well.time * 60
         elif self.slug_well.time_unit == "hr":
             self.slug_well.time = self.slug_well.time * 3600
 
     def harmonize_units(self):
-        """ Harmonize the units of the slug test with the aquifer. """
+        """Harmonize the units of the slug test with the aquifer."""
         aquifer_length_unit = self.aquifer.length_unit
-        slug_well_length_unit = self.slug_well.length_unit        
+        slug_well_length_unit = self.slug_well.length_unit
 
         if aquifer_length_unit != slug_well_length_unit:
             # all should be in well length unit
@@ -320,12 +319,14 @@ class Butler_2003(AquiferTestBase):
 
             for attr in attribues:
                 if hasattr(self.aquifer, attr):
-                    value = getattr(self.aquifer, attr)                   
+                    value = getattr(self.aquifer, attr)
                     new_value = harmonize_units(
-                        value=value, from_unit=aquifer_length_unit, to_unit=slug_well_length_unit
+                        value=value,
+                        from_unit=aquifer_length_unit,
+                        to_unit=slug_well_length_unit,
                     )
-                    setattr(self.aquifer, attr, new_value)      
-        
+                    setattr(self.aquifer, attr, new_value)
+
     def validate_required_properties(self) -> None:
         """
         Validate required properties of the slug test. This method should ensure that the data
@@ -341,9 +342,6 @@ class Butler_2003(AquiferTestBase):
             raise ValueError("Saturated thickness must be greater than zero.")
         if self.slug_well.casing_radius <= 0:
             raise ValueError("Casing radius must be greater than zero.")
-        
-
-      
 
     def model(self, t, Cd, mod_factor):
 
@@ -378,7 +376,7 @@ class Butler_2003(AquiferTestBase):
 
     def analyze(self) -> None:
 
-        radius_of_transducer_cable = 0.003 #todo: make it a parameter
+        radius_of_transducer_cable = 0.003  # todo: make it a parameter
         if self.slug_well.length_unit == "m":
             g = 9.81  # todo: depends on units
         else:
@@ -402,8 +400,8 @@ class Butler_2003(AquiferTestBase):
 
         # get static level
         static_level = get_static_level(head)
-        dev_static = head - static_level        
-        H0 = dev_static[0]        
+        dev_static = head - static_level
+        H0 = dev_static[0]
         h_normalized = dev_static / H0
 
         p0 = [1.99, 1.0]
@@ -440,7 +438,7 @@ class Butler_2003(AquiferTestBase):
         # compute k
         tfac = modfac
 
-        N8 = 32.174/ (tfac**2)
+        N8 = 32.174 / (tfac**2)
         N9 = depth_screen_bottom - (b + water_table_depth) + b / 2 * (rnc**2 / rw**2)
         N10 = abs(N8 - N9) / N9
 

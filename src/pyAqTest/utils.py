@@ -4,7 +4,6 @@ import re
 
 import pandas as pd
 import numpy as np
-from typing import List, Dict, Any
 import matplotlib
 
 matplotlib.use("TkAgg")
@@ -85,6 +84,44 @@ def extract_wet_period(df, window_size=20, debug={"flg": False}):
         plt.close()
 
     return recovery_head, recovery_time, static_level
+
+
+def insitu_to_csv(
+    insitu_file: str | None = None,
+    output_csv_file: str | None = None,
+    extract_recovery: bool = True,
+    fig_folder: str | None = None,
+) -> None:
+    df = readers.extract_table_from_insitu_html_file(insitu_file)
+    slug_file = os.path.basename(insitu_file)
+
+    if extract_recovery:
+        try:
+            recovery_head, recovery_time, static_level = extract_wet_period(
+                df,
+                window_size=10,
+                debug={
+                    "flg": True,
+                    "plot_folder": fig_folder,
+                    "file_name": slug_file,
+                },
+            )
+
+            df_ = pd.DataFrame(
+                {
+                    "Time": recovery_time,
+                    "Head": recovery_head,
+                    "Static Level": static_level,
+                }
+            )
+
+            # Save the data to CSV
+            df_.to_csv(
+                output_csv_file,
+                index=False,
+            )
+        except:
+            print(f"  Error processing file: {slug_file} ")
 
 
 def in_situ_tests_to_csv(
@@ -171,9 +208,6 @@ def rename_htm_files(input_folder, output_folder, file_extension, skip_word):
             print(f" Skipped -- {file}")
 
 
-import numpy as np
-
-
 def evaluate_regression_fit(y_obs, y_pred, num_predictors=None, verbose=False):
     """
     Evaluate regression fit statistics
@@ -219,8 +253,7 @@ def evaluate_regression_fit(y_obs, y_pred, num_predictors=None, verbose=False):
         "SS_tot": ss_tot,
         "Residual_Mean": np.mean(residuals),
         "Residual_Std": np.std(residuals, ddof=1),
-        "num_data": n
-       
+        "num_data": n,
     }
 
     if verbose:
@@ -234,6 +267,7 @@ def evaluate_regression_fit(y_obs, y_pred, num_predictors=None, verbose=False):
         print(f"Residual Std:   {results['Residual_Std']:.4f}")
 
     return results
+
 
 def harmonize_units(value, from_unit, to_unit):
     """
@@ -258,9 +292,10 @@ def harmonize_units(value, from_unit, to_unit):
     else:
         raise ValueError(f"Unsupported unit conversion: {from_unit} to {to_unit}")
 
+
 def get_static_level(head, percentile=10):
     """
-    Estimate static water level by selecting head values where 
+    Estimate static water level by selecting head values where
     absolute head change is below a given percentile.
 
     Parameters:
@@ -271,7 +306,7 @@ def get_static_level(head, percentile=10):
     - static_level: estimated static head
     """
     head = np.asarray(head)
-    
+
     # Compute absolute first differences
     diffs = np.abs(np.diff(head, append=head[-1]))  # same length as head
 
@@ -288,9 +323,8 @@ def get_static_level(head, percentile=10):
         raise ValueError("No head values found below the given percentile.")
 
     # Estimate static level (mean of stable values)
-    return np.mean(stable_heads)       
+    return np.mean(stable_heads)
 
-    
 
 if __name__ == "__main__":
     # Example usage
@@ -317,4 +351,3 @@ if __name__ == "__main__":
         skip_word=skip_word,
         file_extension="htm",
     )
-

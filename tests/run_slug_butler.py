@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 from pyAqTest import Aquifer, SlugWell, Butler_2003
 
 fn = r"C:\workspace\projects\pump_tests\pyAqTest\tests\datasets\butler_method.csv"

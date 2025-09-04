@@ -58,9 +58,7 @@ class Aquifer:
         self.radial_conductivity = radial_conductivity
         self.vertical_conductivity = vertical_conductivity
         self.specific_yield = specific_yield
-        self.specific_storage = specific_storage       
-        
-
+        self.specific_storage = specific_storage
 
     def __str__(self) -> str:
         # todo: fix all units

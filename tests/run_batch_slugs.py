@@ -5,7 +5,6 @@
 import os
 import shutil
 import pandas as pd
-from PIL.ImageChops import screen
 import numpy as np
 from pyAqTest import run_batch
 
@@ -64,7 +63,7 @@ df_batch = pd.DataFrame(
 
 df_batch["test_id"] = [f"test_{i+1}" for i in range(number_of_tests)]
 df_batch["test_type"] = "slug"
-df_batch["aquifer_name"] = [f"Aquifer_1" for i in range(number_of_tests)]
+df_batch["aquifer_name"] = ["Aquifer_1" for i in range(number_of_tests)]
 df_batch["aquifer_type"] = "unconfined"
 df_batch["ground_surface_elevation"] = 100.0  # in meters
 df_batch["aquifer_thickness"] = 50.6
@@ -86,5 +85,3 @@ df_batch.to_csv(batch_file, index=False)
 
 output_dir = os.path.join(root, "output")
 df_results = run_batch(batch_data=batch_file, output_dir=output_dir)
-
-

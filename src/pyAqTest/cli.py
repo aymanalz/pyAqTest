@@ -4,10 +4,8 @@ from os import mkdir
 
 import pandas as pd
 import typer
-from pathlib import Path
 from rich.console import Console
 from rich.text import Text
-from rich.panel import Panel
 from rich.table import Table
 
 import pyAqTest.utils
@@ -47,19 +45,15 @@ def main():
                 f"[bold red]❌ Error:[/] Folder not found at [yellow]{slug_folder}[/]"
             )
             console.print("Try again ...")
-    
+
     # get units
     while True:
-        length_unit = typer.prompt(
-            "  - Enter length unit (m or ft):"
-        )
+        length_unit = typer.prompt("  - Enter length unit (m or ft):")
         if length_unit.lower() in ["m", "ft"]:
             console.print(f"[bold green]✅ Length unit set to:[/] {length_unit}")
             break
     while True:
-        time_unit = typer.prompt(
-            "  - Enter time unit (s, min, or hr):"
-        )
+        time_unit = typer.prompt("  - Enter time unit (s, min, or hr):")
         if time_unit.lower() in ["s", "min", "hr"]:
             console.print(f"[bold green]✅ Time unit set to:[/] {time_unit}")
             break
@@ -67,11 +61,11 @@ def main():
     # get output folder
     while True:
         output_dir = typer.prompt(
-            f"\n\nEnter the path for the folder where the analysis results will be saved.. "
+            "\n\nEnter the path for the folder where the analysis results will be saved.. "
         )
         if os.path.isdir(output_dir):
             console.print(f"Folder exists:{output_dir}, Do you want to remove it❓")
-            yes_no = typer.prompt(f"y|n?")
+            yes_no = typer.prompt("y|n?")
             if "n" in yes_no:
                 continue
             if "y" in yes_no:
@@ -85,7 +79,7 @@ def main():
         break
 
     # extract csv from html
-    console.print(f"\n\n⏳ Working on extracting slug test recovery data... ")
+    console.print("\n\n⏳ Working on extracting slug test recovery data... ")
     slug_csv_dir = os.path.join(output_dir, "test_csv_files")
     mkdir(slug_csv_dir)
     skip_word = "DRY"
@@ -104,14 +98,14 @@ def main():
 
     # Batch file entry
     console.print(
-        f"\n\n📦 To implement batch slug processing, you will need a csv file with tests information needed."
+        "\n\n📦 To implement batch slug processing, you will need a csv file with tests information needed."
     )
-    console.print(f"📦 Here is an example ...\n\n")
+    console.print("📦 Here is an example ...\n\n")
     get_slug_data_example()
 
     #
     while True:
-        batch_file = typer.prompt(f"\n\nEnter the batch run file .. ")
+        batch_file = typer.prompt("\n\nEnter the batch run file .. ")
         if not (os.path.isfile(batch_file)):
             console.print("❌File does not exist ...")
             continue
@@ -121,7 +115,7 @@ def main():
             print("This is NOT an csv file.")
             continue
 
-    console.print(f"\n\n 🔄 Running the slug test analysis ...")
+    console.print("\n\n 🔄 Running the slug test analysis ...")
 
     output_dir_slug = os.path.join(output_dir, "fit_results")
     batch_data = pd.read_csv(batch_file)
@@ -140,14 +134,19 @@ def main():
         title="First three tests in the batch processing table!",
     )
     batch_data = batch_data.set_index("field").transpose()
-    df_results = pyAqTest.run_batch(batch_data=batch_data, output_dir=output_dir, time_unit=time_unit, length_unit=length_unit)
+    df_results = pyAqTest.run_batch(
+        batch_data=batch_data,
+        output_dir=output_dir,
+        time_unit=time_unit,
+        length_unit=length_unit,
+    )
     fn_results = os.path.join(output_dir, "estimated_conductivity.csv")
     fn_plots = os.path.join(output_dir, "fit_plots")
     df_results.to_csv(fn_results)
 
     console.print("\n\n" + 25 * " " + 30 * " ░░░", style="sandy_brown")
 
-    console.print(f"\n\n✅ Analysis completed ...")
+    console.print("\n\n✅ Analysis completed ...")
     console.print(f"✅ Estimated Parameters can be found at {fn_results}...")
     console.print(f"✅ Fitting plots can be found at {fn_plots}...")
     console.print("[bold blue]Estimated Parameters :[/bold blue]")

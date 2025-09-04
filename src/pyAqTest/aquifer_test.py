@@ -8,7 +8,6 @@ and calculating transmissivity and storage coefficient.
 """
 
 
-from typing import Dict, Any
 from pyAqTest import Aquifer
 from pyAqTest import Well
 

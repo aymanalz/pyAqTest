@@ -1,11 +1,9 @@
 import os
 import shutil
 
-import pandas as pd
 import matplotlib
 
 matplotlib.use("TkAgg")
-import matplotlib.pyplot as plt
 import pyAqTest
 import re
 
@@ -31,7 +29,7 @@ if 0:
         if not (file.lower().endswith(".htm")):
             continue
 
-        if not (key_word_to_include in file):
+        if key_word_to_include not in file:
             continue
 
         well_name = extract_well_name(file)

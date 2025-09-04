@@ -53,7 +53,7 @@ class Well:
         self.screen_top_depth = screen_top_depth
         self.length_unit = length_unit
         self.time_unit = time_unit
-         
+
         self.validate_casing_radius()
         self.validate_well_type()  # validate well type
         self.validate_length_and_time_units()
@@ -120,7 +120,7 @@ class Well:
                 f"Valid types are: {', '.join(VALID_WELL_TYPES)}."
             )
         return None
-    
+
     def validate_length_and_time_units(self) -> Union[None, str]:
         if self.length_unit not in ["m", "ft"]:
             return (
@@ -284,7 +284,7 @@ class SlugWell(Well):
         slug_volume: float = None,
         is_recovery_data: bool = False,
         length_unit: str = "m",
-        time_unit: str = "s"
+        time_unit: str = "s",
     ) -> None:
 
         super().__init__(

@@ -28,7 +28,7 @@ aq = Aquifer(
     water_table_depth=10.0,
     anisotropy=1.0,
     length_unit="m",
-    time_unit="s",  
+    time_unit="s",
 )
 
 print(aq)
