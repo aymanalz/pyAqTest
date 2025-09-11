@@ -237,7 +237,7 @@ class Bouwer_Rice_1976(AquiferTestBase):
         C = np.dot(xs, betaC)
 
         part1 = 1.1 / (np.log((d + b) / rw_star))
-        term6 = np.log((D - (d + b)) / rw_star)
+        term6 = np.log(np.abs(D - (d + b)) / rw_star) # todo: handle negative values
         if term6 > 6.0:
             term6 = 6.0
         part2 = (A + B * term6) / (b / rw_star)
@@ -468,7 +468,7 @@ class Butler_2003(AquiferTestBase):
 
         # T21 and U24 logic
         T21 = 1.1 / math.log((d + b) / rw)
-        X24 = math.log((B - (d + b)) / rw)
+        X24 = math.log(np.abs(B - (d + b)) / rw)
         U24 = min(6, X24)
         U23 = (V18 + V19 * U24) / ar
         S18 = 1 / (T21 + U23)

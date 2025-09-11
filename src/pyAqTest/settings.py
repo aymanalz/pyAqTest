@@ -5,6 +5,7 @@ class Batch_Settings:
     def __init__(self):
         self.raw_data_folder = "."
         self.batch_data_file = r".\batch_info.csv"
+        self.split_batch_files = True
         self.file_type = "csv"
         self.length_unit = "m"
         self.time_unit = "s"

@@ -194,6 +194,7 @@ def extract_well_name(text):
 
 def rename_htm_files(input_folder, output_folder, file_extension, skip_word):
     # 1) Get the files with slug data
+    # todo: handle T1 and T2
     slug_files = os.listdir(input_folder)
     slug_files = [f for f in slug_files if skip_word not in f]
     slug_files = [f for f in slug_files if f.endswith(file_extension)]

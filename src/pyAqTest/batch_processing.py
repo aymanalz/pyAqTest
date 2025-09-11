@@ -88,6 +88,7 @@ class Batch_Processing:
             raise FileNotFoundError(
                 f"The batch data file {self.batch_data_file} does not exist."
             )
+        
         self.df_batch = pd.read_csv(self.batch_data_file)
         self.df_batch = self.df_batch.set_index("field").transpose()
 
