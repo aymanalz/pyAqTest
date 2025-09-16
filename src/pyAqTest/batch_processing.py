@@ -1,6 +1,7 @@
 import os
 import shutil
 import configparser
+from pathlib import Path
 
 import pandas as pd
 from pyAqTest import Aquifer, SlugWell, Bouwer_Rice_1976, Butler_2003
@@ -99,6 +100,11 @@ class Batch_Processing:
         os.makedirs(procced_data_folder)
         df_results = []
         for irow, row in self.df_batch.iterrows():
+            # check if all values are na
+            if row.isna().all():
+                continue
+            # if int(irow)> 3: # debug
+            #     continue
             test_id = row.get("test_id")
             test_type = row.get("test_type")
             aquifer_name = row.get("aquifer_name")
@@ -213,7 +219,12 @@ class Batch_Processing:
         if attr in self.df_results.columns:
             info = self.df_results[self.df_results["test_name"] == test_name][
                         attr
-                    ].values[0]
+                    ].values
+            if len(info) == 1:
+                info = info[0]
+            else:
+                info = "N/A"
+
         else:
             info = "N/A"
         return info
@@ -233,20 +244,36 @@ class Batch_Processing:
     def generate_html_report(self):
 
         test_names = self.df_batch["test_id"].unique()
+        self.df_results.to_csv(os.path.join(self.output_folder, "estimated_conductivity.csv"))
         for test_name in test_names:
+            if not (test_name in self.df_results["test_name"].values):                
+                continue
             components = []
 
             # General Info
             # -----------------
-            test_date = "Date of Analysis: " + str(date.today())
+            if 'Test Date' in self.df_batch.columns:
+                test_date = self.df_batch[self.df_batch["test_id"] == test_name]['Test Date'].values[0]
+
+            analysis_date = "Date of Analysis: " + str(date.today())
+            test_date = "Date of Test: " + test_date
             well_name = self.df_batch[self.df_batch["test_id"] == test_name]['well_name'].values[0]
             well_name = "Well Name: " + str(well_name)
             aquifer_name = "Aquifer Name: " + str(self.get_well_info(test_name, "aquifer_name")) 
             aquifer_type = "Aquifer Type: " + str(self.get_well_info(test_name, "aquifer_type"))               
-            solution_method = "Solution Method: " + str(self.get_well_info(test_name, "solution_method")) 
-            estimated_k = "Estimated K: " + str(self.get_results(test_name, "hydraulic_conductivity")) + " " + str(self.length_unit) + "/" + str(self.time_unit)
+            solution_method = "Solution Method: " + str(self.get_well_info(test_name, "solution_method"))
+            kvalue = self.get_results(test_name, "hydraulic_conductivity")
+            if self.time_unit == "s":
+               kvalue = kvalue * 24*60*60
+            elif self.time_unit == "min":
+                 kvalue = kvalue * 24*60
+            elif self.time_unit == "h":
+                 kvalue = kvalue * 24
+           
+            rounded_kvalue = round(kvalue, 2)
+            estimated_k = "Estimated K: " + str(rounded_kvalue) + " " + str(self.length_unit) + "/" + str(self.time_unit)
             estimated_s = "Estimated S: " + str(self.get_results(test_name, "S_estimated"))
-            raw_list = [test_date, well_name, 
+            raw_list = [analysis_date, test_date, well_name, 
                         aquifer_name, aquifer_type,
                         solution_method, estimated_k, 
                         estimated_s]
@@ -265,20 +292,22 @@ class Batch_Processing:
             # -----------------
             cols = ['well_radius', 'casing_radius', 'screen_length', 'screen_top_depth', 'test_data_file', 'slug_volume']
             df_well = self.df_batch[self.df_batch["test_id"] == test_name]
-            df_well = df_well[cols]           
+            df_well = df_well[cols] 
+            basenames = [os.path.basename(f) for f in df_well["test_data_file"]]
+            df_well["test_data_file"] = basenames
             df_well = df_well.transpose()            
             df_well.reset_index(inplace=True)
-            df_well.columns = ["Parameter", "Value"]
+            df_well.columns = ["Parameter", "Value (ft)"]
             # in table df_well, column Parameter, replace "_" with " " and capitalize each word
             df_well["Parameter"] = df_well["Parameter"].str.replace("_", " ").str.title()
             table1 = ("table", df_well, "Well Info")
 
-            img_fn = self.get_well_info(test_name, "test_data_file")
-            # remove extension if it exists
-            if "." in img_fn:
-                img_fn = img_fn.split(".")[0]
+            img_fn = self.get_well_info(test_name, "test_data_file")  
+            basename = os.path.basename(img_fn)       
+            basename = Path(basename).with_suffix('.png')
+
             
-            img1 = os.path.join(self.output_folder, "recovery_splits", img_fn + ".png")
+            img1 = os.path.join(self.output_folder, "recovery_splits", str(basename))
             row2 = [table1, ("image", img1, "Recovery Data Splits")]
             components.append(row2)
 
@@ -446,14 +475,14 @@ def run_batch(
     return df_results
 
 
-def run_batch_init(config_file=None):
-    # check if file exist
-    if not (os.path.exists(config_file)):
-        raise FileNotFoundError(f"The file {config_file} does not exist.")
+# def run_batch_init(config_file=None):
+#     # check if file exist
+#     if not (os.path.exists(config_file)):
+#         raise FileNotFoundError(f"The file {config_file} does not exist.")
 
-    try:
-        config_obj = setting.read_config(config_file)
-    except:
-        raise ValueError(f"Error reading {config_file} file")
+#     try:
+#         config_obj = setting.read_config(config_file)
+#     except:
+#         raise ValueError(f"Error reading {config_file} file")
 
-    run_batch(config_file=config_file)
+#     run_batch(config_file=config_file)

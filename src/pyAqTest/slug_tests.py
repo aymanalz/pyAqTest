@@ -171,7 +171,7 @@ class Bouwer_Rice_1976(AquiferTestBase):
         rw = self.slug_well.well_radius
         anis = self.aquifer.anisotropy
         d = gw_elv - sreen_top_elev
-        b = self.slug_well.screen_length  # L
+        b = np.abs(self.slug_well.screen_length)  # L
 
         if d < 0:
             d = 0
