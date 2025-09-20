@@ -87,7 +87,7 @@ def create_ini_config_form(config_dict, filename, file_path=None):
     return form_elements
 
 def create_csv_table(df, filename):
-    """Create an interactive table from CSV data"""
+    """Create an interactive table from CSV data with column selection and search"""
     if df is None or df.empty:
         return html.Div([
             html.H6("No data available", className="text-muted"),
@@ -106,25 +106,62 @@ def create_csv_table(df, filename):
         ])
     ], className="mb-3")
     
-    # Create interactive table using dash_table
+    # Column selection and search controls
+    controls_card = dbc.Card([
+        dbc.CardHeader([html.H6("🔍 Table Controls", className="mb-0")]),
+        dbc.CardBody([
+            dbc.Row([
+                dbc.Col([
+                    dbc.Label("Search Columns:", className="fw-bold"),
+                    dbc.Input(
+                        id="column-search",
+                        placeholder="Type to search columns...",
+                        value="",
+                        debounce=True
+                    )
+                ], width=6),
+                dbc.Col([
+                    dbc.Label("Show Columns:", className="fw-bold"),
+                    dcc.Dropdown(
+                        id="column-selector",
+                        options=[{"label": col, "value": col} for col in df.columns],
+                        value=df.columns[:10].tolist() if len(df.columns) > 10 else df.columns.tolist(),
+                        multi=True,
+                        style={"fontSize": "14px"}
+                    )
+                ], width=6)
+            ], className="mb-3"),
+            dbc.Row([
+                dbc.Col([
+                    dbc.Button("📋 Select All", id="select-all-cols", color="outline-primary", size="sm", className="me-2"),
+                    dbc.Button("❌ Clear All", id="clear-all-cols", color="outline-secondary", size="sm", className="me-2"),
+                    dbc.Button("🔄 Reset View", id="reset-view", color="outline-info", size="sm")
+                ], width=12)
+            ])
+        ])
+    ], className="mb-3")
+    
+    # Create interactive table using dash_table with initial subset
+    initial_cols = df.columns[:10].tolist() if len(df.columns) > 10 else df.columns.tolist()
     table = dcc.Graph(
+        id="csv-data-table",
         figure={
             'data': [{
                 'type': 'table',
                 'header': {
-                    'values': df.columns.tolist(),
+                    'values': initial_cols,
                     'fill': {'color': '#007bff'},
                     'font': {'color': 'white', 'size': 12}
                 },
                 'cells': {
-                    'values': [df[col].tolist() for col in df.columns],
+                    'values': [df[col].tolist() for col in initial_cols],
                     'fill': {'color': ['#f8f9fa', 'white']},
                     'font': {'size': 11},
                     'height': 30
                 }
             }],
             'layout': {
-                'title': f'Batch Data: {filename}',
+                'title': f'Batch Data: {filename} (Showing {len(initial_cols)} of {len(df.columns)} columns)',
                 'height': min(600, 200 + len(df) * 30),
                 'margin': {'l': 10, 'r': 10, 't': 50, 'b': 10}
             }
@@ -163,7 +200,7 @@ def create_csv_table(df, filename):
         ])
     ])
     
-    components = [header, table]
+    components = [header, controls_card, table]
     if summary_card:
         components.append(summary_card)
     components.append(export_buttons)
@@ -323,6 +360,7 @@ def register_callbacks(app):
             
             # Auto-load CSV file if batch_data_file is specified in INI
             parsed_config = data_storage.get('parsed_config', {})
+            
             if parsed_config and "error" not in parsed_config:
                 # Check for batch_data_file in Input Info section
                 if "Input Info" in parsed_config:
@@ -349,7 +387,15 @@ def register_callbacks(app):
                         except Exception as e:
                             add_data('csv_batch_data', None)
                             add_data('csv_filename', None)
-                            print(f"Error loading CSV file: {e}")
+                    else:
+                        add_data('csv_batch_data', None)
+                        add_data('csv_filename', None)
+                else:
+                    add_data('csv_batch_data', None)
+                    add_data('csv_filename', None)
+            else:
+                add_data('csv_batch_data', None)
+                add_data('csv_filename', None)
             
             # Create form with INI config content
             if parsed_config and "error" not in parsed_config:
@@ -370,7 +416,8 @@ def register_callbacks(app):
     def auto_update_batch_table(contents, filename):
         """Auto-update batch table when INI file is loaded"""
         data_storage = get_data_storage()
-        if contents is not None and data_storage.get('csv_batch_data') is not None:
+        
+        if data_storage.get('csv_batch_data') is not None:
             return create_csv_table(data_storage['csv_batch_data'], data_storage.get('csv_filename'))
         elif contents is not None and data_storage.get('csv_batch_data') is None:
             return html.Div([
@@ -575,3 +622,111 @@ def register_callbacks(app):
         ], striped=True, bordered=True, hover=True)
         
         return table
+    
+    # Callback for column search functionality
+    @app.callback(
+        dash.dependencies.Output('column-selector', 'options'),
+        [dash.dependencies.Input('column-search', 'value')],
+        prevent_initial_call=True
+    )
+    def filter_column_options(search_term):
+        """Filter column options based on search term"""
+        data_storage = get_data_storage()
+        if 'csv_batch_data' not in data_storage or data_storage['csv_batch_data'] is None:
+            return []
+        
+        df = data_storage['csv_batch_data']
+        all_columns = df.columns.tolist()
+        
+        if not search_term:
+            return [{"label": col, "value": col} for col in all_columns]
+        
+        # Filter columns that contain the search term (case insensitive)
+        filtered_columns = [col for col in all_columns if search_term.lower() in col.lower()]
+        return [{"label": col, "value": col} for col in filtered_columns]
+    
+    # Callback for updating table based on selected columns
+    @app.callback(
+        dash.dependencies.Output('csv-data-table', 'figure'),
+        [dash.dependencies.Input('column-selector', 'value')],
+        prevent_initial_call=True
+    )
+    def update_table_display(selected_columns):
+        """Update table display based on selected columns"""
+        data_storage = get_data_storage()
+        if 'csv_batch_data' not in data_storage or data_storage['csv_batch_data'] is None:
+            return {'data': [], 'layout': {'title': 'No data available'}}
+        
+        df = data_storage['csv_batch_data']
+        filename = data_storage.get('csv_filename', 'Unknown')
+        
+        if not selected_columns:
+            selected_columns = df.columns[:10].tolist() if len(df.columns) > 10 else df.columns.tolist()
+        
+        # Create table with selected columns
+        table_data = [{
+            'type': 'table',
+            'header': {
+                'values': selected_columns,
+                'fill': {'color': '#007bff'},
+                'font': {'color': 'white', 'size': 12}
+            },
+            'cells': {
+                'values': [df[col].tolist() for col in selected_columns],
+                'fill': {'color': ['#f8f9fa', 'white']},
+                'font': {'size': 11},
+                'height': 30
+            }
+        }]
+        
+        return {
+            'data': table_data,
+            'layout': {
+                'title': f'Batch Data: {filename} (Showing {len(selected_columns)} of {len(df.columns)} columns)',
+                'height': min(600, 200 + len(df) * 30),
+                'margin': {'l': 10, 'r': 10, 't': 50, 'b': 10}
+            }
+        }
+    
+    # Callback for select all columns button
+    @app.callback(
+        dash.dependencies.Output('column-selector', 'value', allow_duplicate=True),
+        [dash.dependencies.Input('select-all-cols', 'n_clicks')],
+        prevent_initial_call=True
+    )
+    def select_all_columns(n_clicks):
+        """Select all columns when button is clicked"""
+        if n_clicks:
+            data_storage = get_data_storage()
+            if 'csv_batch_data' in data_storage and data_storage['csv_batch_data'] is not None:
+                return data_storage['csv_batch_data'].columns.tolist()
+        return dash.no_update
+    
+    # Callback for clear all columns button
+    @app.callback(
+        dash.dependencies.Output('column-selector', 'value', allow_duplicate=True),
+        [dash.dependencies.Input('clear-all-cols', 'n_clicks')],
+        prevent_initial_call=True
+    )
+    def clear_all_columns(n_clicks):
+        """Clear all column selections when button is clicked"""
+        if n_clicks:
+            return []
+        return dash.no_update
+    
+    # Callback for reset view button
+    @app.callback(
+        [dash.dependencies.Output('column-selector', 'value', allow_duplicate=True),
+         dash.dependencies.Output('column-search', 'value', allow_duplicate=True)],
+        [dash.dependencies.Input('reset-view', 'n_clicks')],
+        prevent_initial_call=True
+    )
+    def reset_table_view(n_clicks):
+        """Reset table view to show first 10 columns"""
+        if n_clicks:
+            data_storage = get_data_storage()
+            if 'csv_batch_data' in data_storage and data_storage['csv_batch_data'] is not None:
+                df = data_storage['csv_batch_data']
+                initial_cols = df.columns[:10].tolist() if len(df.columns) > 10 else df.columns.tolist()
+                return initial_cols, ""
+        return dash.no_update, dash.no_update
