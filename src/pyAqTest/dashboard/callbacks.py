@@ -10,8 +10,9 @@ import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
 import base64
 import pandas as pd
+import os
+import configparser
 from .data_storage import get_data_storage, add_data
-from .utils import read_ini_file
 
 def create_ini_config_form(config_dict, filename, file_path=None):
     """Create a neat form with INI config file content"""
@@ -336,9 +337,6 @@ def register_callbacks(app):
         """Handle .ini file upload"""
         if contents is not None:
             # File was selected - capture full file path
-            import os
-            import base64
-            import configparser
             
             full_path = os.path.abspath(filename) if filename else "Unknown path"
             
@@ -358,46 +356,8 @@ def register_callbacks(app):
             except Exception as e:
                 add_data('parsed_config', {"error": f"Failed to parse INI file: {str(e)}"})
             
-            # Auto-load CSV file if batch_data_file is specified in INI
-            parsed_config = data_storage.get('parsed_config', {})
-            
-            if parsed_config and "error" not in parsed_config:
-                # Check for batch_data_file in Input Info section
-                if "Input Info" in parsed_config:
-                    input_info = parsed_config["Input Info"]
-                    if "batch_data_file" in input_info:
-                        csv_path = input_info["batch_data_file"]
-                        # Try to load the CSV file
-                        try:
-                            import pandas as pd
-                            # Check if path is relative or absolute
-                            if not os.path.isabs(csv_path):
-                                # Make relative to INI file directory
-                                ini_dir = os.path.dirname(full_path)
-                                csv_path = os.path.join(ini_dir, csv_path)
-                            
-                            # Load CSV file
-                            if os.path.exists(csv_path):
-                                df = pd.read_csv(csv_path)
-                                add_data('csv_batch_data', df)
-                                add_data('csv_filename', os.path.basename(csv_path))
-                            else:
-                                add_data('csv_batch_data', None)
-                                add_data('csv_filename', None)
-                        except Exception as e:
-                            add_data('csv_batch_data', None)
-                            add_data('csv_filename', None)
-                    else:
-                        add_data('csv_batch_data', None)
-                        add_data('csv_filename', None)
-                else:
-                    add_data('csv_batch_data', None)
-                    add_data('csv_filename', None)
-            else:
-                add_data('csv_batch_data', None)
-                add_data('csv_filename', None)
-            
             # Create form with INI config content
+            parsed_config = data_storage.get('parsed_config', {})
             if parsed_config and "error" not in parsed_config:
                 form_content = create_ini_config_form(parsed_config, filename, full_path)
             else:
@@ -415,111 +375,61 @@ def register_callbacks(app):
     )
     def auto_update_batch_table(contents, filename):
         """Auto-update batch table when INI file is loaded"""
-        data_storage = get_data_storage()
+        if contents is None:
+            return "No batch data loaded"
         
-        if data_storage.get('csv_batch_data') is not None:
-            return create_csv_table(data_storage['csv_batch_data'], data_storage.get('csv_filename'))
-        elif contents is not None and data_storage.get('csv_batch_data') is None:
-            return html.Div([
-                html.H6("No CSV data found", className="text-warning"),
-                html.P("The INI file does not contain a valid 'batch_data_file' path in the 'Input Info' section"),
-                html.P("Or the CSV file could not be loaded from the specified path")
-            ])
-        return "No batch data loaded"
-    
-    # Callback for load batch button
-    @app.callback(
-        dash.dependencies.Output('load-file-info', 'children', allow_duplicate=True),
-        [dash.dependencies.Input('load-action-btn', 'n_clicks')],
-        prevent_initial_call=True
-    )
-    def load_batch_file(n_clicks):
-        """Handle load batch file button"""
-        if n_clicks:
-            # Example: Read INI file using utils function
-            # You can call this with any INI filename
-            # success = read_ini_file("config.ini")
-            # if success:
-            #     return "INI file loaded successfully!"
-            # else:
-            #     return "Failed to load INI file"
-            
-            return "Load action triggered - use Choose File button to select .ini file"
-        return dash.no_update
-    
-    # Callback for new batch button
-    @app.callback(
-        dash.dependencies.Output('load-file-info', 'children', allow_duplicate=True),
-        [dash.dependencies.Input('new-action-btn', 'n_clicks')],
-        prevent_initial_call=True
-    )
-    def new_batch_file(n_clicks):
-        """Handle new batch file button"""
-        if n_clicks:
-            return "New batch action triggered - create new batch configuration"
-        return dash.no_update
-    
-    # Callback for save button
-    @app.callback(
-        dash.dependencies.Output('load-file-info', 'children', allow_duplicate=True),
-        [dash.dependencies.Input('save-action-btn', 'n_clicks')],
-        prevent_initial_call=True
-    )
-    def save_batch_file(n_clicks):
-        """Handle save button"""
-        if n_clicks:
-            return "Save action triggered - save current batch configuration"
-        return dash.no_update
-    
-    # Callback for upload button
-    @app.callback(
-        [dash.dependencies.Output('output-data-upload', 'children'),
-         dash.dependencies.Output('analysis-plot', 'figure')],
-        [dash.dependencies.Input('upload-btn', 'n_clicks')]
-    )
-    def handle_upload(n_clicks):
-        """Handle file upload and display results"""
-        if n_clicks is None:
-            return "No files uploaded", go.Figure()
-        
+        # Load CSV data directly in this callback to avoid timing issues
         try:
-            # Create a simple analysis plot
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(
-                x=[1, 2, 3, 4, 5], 
-                y=[10, 11, 12, 13, 14], 
-                mode='lines+markers',
-                name='Slug Test Data',
-                line=dict(color='blue', width=2)
-            ))
+            # Parse INI file
+            decoded = base64.b64decode(contents.split(',')[1]).decode('utf-8')
+            config = configparser.ConfigParser()
+            config.read_string(decoded)
+            config_dict = {}
+            for section in config.sections():
+                config_dict[section] = dict(config[section])
             
-            fig.update_layout(
-                title="Slug Test Analysis Results",
-                xaxis_title="Time (minutes)",
-                yaxis_title="Head (ft)",
-                height=500,
-                width=None,
-                autosize=True,
-                margin=dict(l=50, r=50, t=50, b=50),
-                template="plotly_white"
-            )
-            
-            return "Successfully uploaded files!", fig
-            
+            # Check for batch_data_file in Input Info section
+            if "Input Info" in config_dict:
+                input_info = config_dict["Input Info"]
+                if "batch_data_file" in input_info:
+                    csv_path = input_info["batch_data_file"]
+                    
+                    # Get full path to INI file
+                    full_path = os.path.abspath(filename) if filename else "Unknown path"
+                    
+                    # Check if path is relative or absolute
+                    if not os.path.isabs(csv_path):
+                        # Make relative to INI file directory
+                        ini_dir = os.path.dirname(full_path)
+                        csv_path = os.path.join(ini_dir, csv_path)
+                    
+                    # Load CSV file
+                    if os.path.exists(csv_path):
+                        df = pd.read_csv(csv_path)
+                        # Store in global storage for other callbacks
+                        add_data('csv_batch_data', df)
+                        add_data('csv_filename', os.path.basename(csv_path))
+                        return create_csv_table(df, os.path.basename(csv_path))
+                    else:
+                        return html.Div([
+                            html.H6("CSV file not found", className="text-warning"),
+                            html.P(f"Could not find CSV file at: {csv_path}")
+                        ])
+                else:
+                    return html.Div([
+                        html.H6("No batch_data_file found", className="text-warning"),
+                        html.P("The INI file does not contain a 'batch_data_file' key in the 'Input Info' section")
+                    ])
+            else:
+                return html.Div([
+                    html.H6("No Input Info section found", className="text-warning"),
+                    html.P("The INI file does not contain an 'Input Info' section")
+                ])
         except Exception as e:
-            return f"Error uploading file: {str(e)}", go.Figure()
-    
-    # Callback for clear button
-    @app.callback(
-        dash.dependencies.Output('upload-status', 'children', allow_duplicate=True),
-        [dash.dependencies.Input('clear-btn', 'n_clicks')],
-        prevent_initial_call=True
-    )
-    def clear_files(n_clicks):
-        """Clear file selection"""
-        if n_clicks:
-            return "Files cleared"
-        return dash.no_update
+            return html.Div([
+                html.H6("Error loading data", className="text-danger"),
+                html.P(f"Error: {str(e)}")
+            ])
     
     # Callback for analysis button
     @app.callback(
