@@ -2,6 +2,7 @@ import os
 import shutil
 import configparser
 from pathlib import Path
+from tqdm import tqdm
 
 import pandas as pd
 from pyAqTest import Aquifer, SlugWell, Bouwer_Rice_1976, Butler_2003
@@ -57,6 +58,7 @@ class Batch_Processing:
             )
 
         self._populate_attributes()
+        self.df_batch = pd.read_csv(self.batch_data_file)
 
     def _from_dict(self, config_dict):
         self.config = configparser.ConfigParser()
@@ -88,9 +90,8 @@ class Batch_Processing:
         if not (os.path.exists(self.batch_data_file)):
             raise FileNotFoundError(
                 f"The batch data file {self.batch_data_file} does not exist."
-            )
+            )        
         
-        self.df_batch = pd.read_csv(self.batch_data_file)
         self.df_batch = self.df_batch.set_index("field").transpose()
 
         if os.path.exists(self.output_folder):
@@ -99,105 +100,109 @@ class Batch_Processing:
         procced_data_folder = os.path.join(self.output_folder, "processed_data")
         os.makedirs(procced_data_folder)
         df_results = []
-        for irow, row in self.df_batch.iterrows():
-            # check if all values are na
-            if row.isna().all():
-                continue
-            # if int(irow)> 3: # debug
-            #     continue
-            test_id = row.get("test_id")
-            test_type = row.get("test_type")
-            aquifer_name = row.get("aquifer_name")
-            aquifer_type = row.get("aquifer_type")
-            aquifer_thickness = float(row.get("aquifer_thickness"))
-            water_table_depth = float(row.get("water_table_depth"))
-            anisotropy = float(row.get("anisotropy"))
-            well_name = row.get("well_name")
-            well_radius = float(row.get("well_radius"))
-            casing_radius = float(row.get("casing_radius"))
-            screen_length = float(row.get("screen_length"))
-            screen_top_depth = float(row.get("screen_top_depth"))
-            test_data_file = row.get("test_data_file")
-            slug_volume = float(row.get("slug_volume", pd.NA))
-            test_method = row.get("solution_method")
+        with tqdm(total=len(self.df_batch), desc="Processing tests") as pbar:
+            for irow, row in self.df_batch.iterrows():  
+                test_id = row.get("test_id")
+                aquifer_name = row.get("aquifer_name")
+                pbar.set_postfix_str(f"Processing {test_id} in aquifer {aquifer_name}")
+                # check if all values are na
+                if row.isna().all():
+                    continue
+                # if int(irow)> 3: # debug
+                #     continue
+                
+                test_type = row.get("test_type")
+                aquifer_name = row.get("aquifer_name")
+                aquifer_type = row.get("aquifer_type")
+                aquifer_thickness = float(row.get("aquifer_thickness"))
+                water_table_depth = float(row.get("water_table_depth"))
+                anisotropy = float(row.get("anisotropy"))
+                well_name = row.get("well_name")
+                well_radius = float(row.get("well_radius"))
+                casing_radius = float(row.get("casing_radius"))
+                screen_length = float(row.get("screen_length"))
+                screen_top_depth = float(row.get("screen_top_depth"))
+                test_data_file = row.get("test_data_file")
+                slug_volume = float(row.get("slug_volume", pd.NA))
+                test_method = row.get("solution_method")
 
-            test_data_file = os.path.join(self.raw_data_folder, test_data_file)
-            if not (os.path.exists(test_data_file)):
-                raise FileNotFoundError(
-                    f"The test data file {test_data_file} does not exist."
+                test_data_file = os.path.join(self.raw_data_folder, test_data_file)
+                if not (os.path.exists(test_data_file)):
+                    raise FileNotFoundError(
+                        f"The test data file {test_data_file} does not exist."
+                    )
+
+                csv_file = os.path.splitext(os.path.basename(test_data_file))[0] + ".csv"
+                csv_file = os.path.join(procced_data_folder, csv_file)
+                insitu_to_csv(
+                    insitu_file=test_data_file,
+                    output_csv_file=csv_file,
+                    fig_folder=os.path.join(self.output_folder, "recovery_splits"),
+                    extract_recovery=True,
                 )
 
-            csv_file = os.path.splitext(os.path.basename(test_data_file))[0] + ".csv"
-            csv_file = os.path.join(procced_data_folder, csv_file)
-            insitu_to_csv(
-                insitu_file=test_data_file,
-                output_csv_file=csv_file,
-                fig_folder=os.path.join(self.output_folder, "recovery_splits"),
-                extract_recovery=True,
-            )
+                test_data = pd.read_csv(csv_file)
+                time_col = self.time_col
+                head_col = self.head_col
+                if time_col not in test_data.columns or head_col not in test_data.columns:
+                    raise ValueError(
+                        f"The test data file {test_data_file} does not contain '{time_col}' and '{head_col}' columns."
+                    )
 
-            test_data = pd.read_csv(csv_file)
-            time_col = self.time_col
-            head_col = self.head_col
-            if time_col not in test_data.columns or head_col not in test_data.columns:
-                raise ValueError(
-                    f"The test data file {test_data_file} does not contain '{time_col}' and '{head_col}' columns."
+                #print(f"Processing {test_id}: {aquifer_name}, {well_name}, {test_type}")
+                # todo: if pumping is implemented, we need to change this
+                aq = Aquifer(
+                    name=aquifer_name,
+                    aquifer_type=aquifer_type,
+                    ground_surface_elevation=100.0,  # todo: do we need this?
+                    saturated_thickness=aquifer_thickness,
+                    water_table_depth=water_table_depth,
+                    anisotropy=anisotropy,
+                    time_unit=self.time_unit,
+                    length_unit=self.length_unit,
+                )
+                test_data[time_col] = pd.to_datetime(test_data[time_col])
+                test_data[time_col] = (
+                    test_data[time_col] - test_data[time_col].values[0]
+                ).dt.total_seconds()
+
+                slug_well = SlugWell(
+                    name=well_name,
+                    well_radius=well_radius,
+                    casing_radius=casing_radius,
+                    screen_length=screen_length,
+                    screen_top_depth=screen_top_depth,
+                    head=test_data[head_col].values,
+                    time=test_data[time_col].values,
+                    slug_volume=slug_volume,
+                    is_recovery_data=True,  # rod
+                    length_unit=self.length_unit,
+                    time_unit=self.time_unit,
                 )
 
-            print(f"Processing {test_id}: {aquifer_name}, {well_name}, {test_type}")
-            # todo: if pumping is implemented, we need to change this
-            aq = Aquifer(
-                name=aquifer_name,
-                aquifer_type=aquifer_type,
-                ground_surface_elevation=100.0,  # todo: do we need this?
-                saturated_thickness=aquifer_thickness,
-                water_table_depth=water_table_depth,
-                anisotropy=anisotropy,
-                time_unit=self.time_unit,
-                length_unit=self.length_unit,
-            )
-            test_data[time_col] = pd.to_datetime(test_data[time_col])
-            test_data[time_col] = (
-                test_data[time_col] - test_data[time_col].values[0]
-            ).dt.total_seconds()
+                if test_method == "Bouwer_Rice":
+                    slug_test = Bouwer_Rice_1976(
+                        name=test_id, aquifer=aq, slug_well=slug_well
+                    )
+                elif test_method == "Butler":
+                    slug_test = Butler_2003(name=test_id, aquifer=aq, slug_well=slug_well)
 
-            slug_well = SlugWell(
-                name=well_name,
-                well_radius=well_radius,
-                casing_radius=casing_radius,
-                screen_length=screen_length,
-                screen_top_depth=screen_top_depth,
-                head=test_data[head_col].values,
-                time=test_data[time_col].values,
-                slug_volume=slug_volume,
-                is_recovery_data=True,  # rod
-                length_unit=self.length_unit,
-                time_unit=self.time_unit,
-            )
+                slug_test.analyze()
+                plots_dir = os.path.join(self.output_folder, "fit_plots")
+                if not (os.path.isdir(plots_dir)):
+                    os.makedirs(plots_dir)
+                fig_file = os.path.join(plots_dir, test_id + ".png")
+                slug_test.viz_fig.savefig(fig_file, format="png")
 
-            if test_method == "Bouwer_Rice":
-                slug_test = Bouwer_Rice_1976(
-                    name=test_id, aquifer=aq, slug_well=slug_well
+                df_res = pd.concat(
+                    [
+                        pd.Series(slug_test.fitting_statistics),
+                        pd.Series(slug_test.estimated_parameters),
+                    ]
                 )
-            elif test_method == "Butler":
-                slug_test = Butler_2003(name=test_id, aquifer=aq, slug_well=slug_well)
-
-            slug_test.analyze()
-            plots_dir = os.path.join(self.output_folder, "fit_plots")
-            if not (os.path.isdir(plots_dir)):
-                os.makedirs(plots_dir)
-            fig_file = os.path.join(plots_dir, test_id + ".png")
-            slug_test.viz_fig.savefig(fig_file, format="png")
-
-            df_res = pd.concat(
-                [
-                    pd.Series(slug_test.fitting_statistics),
-                    pd.Series(slug_test.estimated_parameters),
-                ]
-            )
-            df_res["test_name"] = slug_test.name
-            df_results.append(df_res)          
-
+                df_res["test_name"] = slug_test.name
+                df_results.append(df_res)          
+                pbar.update(1)
 
 
         df_results = pd.concat(df_results, axis=1)
