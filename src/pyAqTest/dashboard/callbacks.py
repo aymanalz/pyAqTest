@@ -13,16 +13,129 @@ import base64
 def register_callbacks(app):
     """Register all callbacks with the app"""
     
-    # Callback for upload button
+    # Callback for load action button
     @app.callback(
-        dash.dependencies.Output('upload-status', 'children'),
-        [dash.dependencies.Input('upload-btn', 'n_clicks')]
+        dash.dependencies.Output('action-tab-content', 'children'),
+        [dash.dependencies.Input('load-action-btn', 'n_clicks')]
     )
-    def update_file_status(n_clicks):
-        """Update file selection status"""
+    def update_load_content(n_clicks):
+        """Update content for load action"""
         if n_clicks:
-            return "Files uploaded successfully!"
-        return "No files selected"
+            return [
+                dbc.Row([
+                    dbc.Col([
+                        html.H6("Load Batch File", className="mb-3"),
+                        html.P("Select and load an existing batch file for analysis", className="text-muted mb-3"),
+                        dbc.Button("Choose File", color="primary", className="me-2"),
+                        dbc.Button("Browse", color="secondary")
+                    ], width=6),
+                    
+                    dbc.Col([
+                        html.H6("File Details", className="mb-3"),
+                        html.Div(id='load-file-info', children="No file selected"),
+                        html.Hr(),
+                        html.H6("Recent Files:", className="mt-3"),
+                        html.Div(id='recent-files', children="No recent files")
+                    ], width=6)
+                ])
+            ]
+        return "Select an action"
+    
+    # Callback for new action button
+    @app.callback(
+        dash.dependencies.Output('action-tab-content', 'children', allow_duplicate=True),
+        [dash.dependencies.Input('new-action-btn', 'n_clicks')],
+        prevent_initial_call=True
+    )
+    def update_new_content(n_clicks):
+        """Update content for new action"""
+        if n_clicks:
+            return [
+                dbc.Row([
+                    dbc.Col([
+                        html.H6("Create New Batch", className="mb-3"),
+                        html.P("Start a new batch analysis from scratch", className="text-muted mb-3"),
+                        dbc.Button("New Batch", color="success", className="me-2"),
+                        dbc.Button("Template", color="info")
+                    ], width=6),
+                    
+                    dbc.Col([
+                        html.H6("Batch Settings", className="mb-3"),
+                        html.Div(id='new-batch-info', children="Configure your new batch"),
+                        html.Hr(),
+                        html.H6("Templates:", className="mt-3"),
+                        html.Div(id='templates', children="Available templates")
+                    ], width=6)
+                ])
+            ]
+        return dash.no_update
+    
+    # Callback for save action button
+    @app.callback(
+        dash.dependencies.Output('action-tab-content', 'children', allow_duplicate=True),
+        [dash.dependencies.Input('save-action-btn', 'n_clicks')],
+        prevent_initial_call=True
+    )
+    def update_save_content(n_clicks):
+        """Update content for save action"""
+        if n_clicks:
+            return [
+                dbc.Row([
+                    dbc.Col([
+                        html.H6("Save Batch", className="mb-3"),
+                        html.P("Save your current batch analysis", className="text-muted mb-3"),
+                        dbc.Button("Save As", color="info", className="me-2"),
+                        dbc.Button("Export", color="warning")
+                    ], width=6),
+                    
+                    dbc.Col([
+                        html.H6("Export Options", className="mb-3"),
+                        html.Div(id='save-options', children="Choose export format"),
+                        html.Hr(),
+                        html.H6("Recent Saves:", className="mt-3"),
+                        html.Div(id='recent-saves', children="No recent saves")
+                    ], width=6)
+                ])
+            ]
+        return dash.no_update
+    
+    # Callback for load batch button
+    @app.callback(
+        [dash.dependencies.Output('upload-status', 'children'),
+         dash.dependencies.Output('action-log', 'children')],
+        [dash.dependencies.Input('load-batch-btn', 'n_clicks')]
+    )
+    def load_batch_file(n_clicks):
+        """Handle load batch file button"""
+        if n_clicks:
+            return "Batch file loaded successfully!", f"• Loaded batch file (click #{n_clicks})"
+        return "No batch file loaded", "No actions yet"
+    
+    # Callback for new batch button
+    @app.callback(
+        [dash.dependencies.Output('upload-status', 'children', allow_duplicate=True),
+         dash.dependencies.Output('action-log', 'children', allow_duplicate=True)],
+        [dash.dependencies.Input('new-batch-btn', 'n_clicks')],
+        prevent_initial_call=True
+    )
+    def new_batch_file(n_clicks):
+        """Handle new batch file button"""
+        if n_clicks:
+            return "New batch file created!", f"• Created new batch file (click #{n_clicks})"
+        return dash.no_update, dash.no_update
+    
+    # Callback for save button
+    @app.callback(
+        [dash.dependencies.Output('upload-status', 'children', allow_duplicate=True),
+         dash.dependencies.Output('action-log', 'children', allow_duplicate=True)],
+        [dash.dependencies.Input('save-btn', 'n_clicks')],
+        prevent_initial_call=True
+    )
+    def save_batch_file(n_clicks):
+        """Handle save button"""
+        if n_clicks:
+            return "Batch file saved successfully!", f"• Saved batch file (click #{n_clicks})"
+        return dash.no_update, dash.no_update
     
     # Callback for upload button
     @app.callback(

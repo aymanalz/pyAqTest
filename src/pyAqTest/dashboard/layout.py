@@ -55,31 +55,84 @@ def create_upload_tab():
         tab_id="upload-tab",
         children=[
             html.Div([
-                html.H2("Upload Slug Test Data", className="mb-4"),
-                html.P("Select your slug test data files for analysis", className="text-muted mb-4"),
-                
-                # Simple file input
+                # Vertical tabs on the left, content on the right
                 dbc.Row([
+                    # Vertical tabs column (narrow)
                     dbc.Col([
                         dbc.Card([
                             dbc.CardBody([
-                                html.H5("File Selection", className="card-title"),
-                                dbc.Label("Choose files:"),
-                                html.P("File selection will be implemented with a different approach.", className="text-muted mb-3"),
-                                dbc.Button("Upload Files", id="upload-btn", color="primary", className="me-2"),
-                                dbc.Button("Clear Selection", id="clear-btn", color="secondary", outline=True)
+                                html.H6("Actions", className="card-title mb-3 text-center"),
+                                
+                                # Vertical action buttons
+                                dbc.ButtonGroup([
+                                    dbc.Button([
+                                        html.I(className="fas fa-upload me-2"),
+                                        "Load"
+                                    ], 
+                                    id="load-action-btn", 
+                                    color="primary", 
+                                    className="mb-2 w-100",
+                                    size="sm"
+                                    ),
+                                    
+                                    dbc.Button([
+                                        html.I(className="fas fa-file-plus me-2"),
+                                        "New"
+                                    ], 
+                                    id="new-action-btn", 
+                                    color="success", 
+                                    className="mb-2 w-100",
+                                    size="sm"
+                                    ),
+                                    
+                                    dbc.Button([
+                                        html.I(className="fas fa-download me-2"),
+                                        "Save"
+                                    ], 
+                                    id="save-action-btn", 
+                                    color="info", 
+                                    className="mb-2 w-100",
+                                    size="sm"
+                                    )
+                                ], 
+                                vertical=True,
+                                style={"width": "100%"}
+                                )
                             ])
                         ])
-                    ], width=6),
+                    ], width=2),
                     
+                    # Main content column (wide)
                     dbc.Col([
                         dbc.Card([
                             dbc.CardBody([
-                                html.H5("Upload Status", className="card-title"),
-                                html.Div(id='upload-status', children="No files selected")
+                                html.H2("Upload Slug Test Data", className="mb-4"),
+                                html.P("Select your slug test data files for analysis", className="text-muted mb-4"),
+                                
+                                # Tab content
+                                html.Div(id="action-tab-content", children=[
+                                    # Status section
+                                    dbc.Row([
+                                        dbc.Col([
+                                            html.H6("Status", className="mb-3"),
+                                            html.Div(id='upload-status', children="No batch file loaded"),
+                                            html.Hr(),
+                                            html.H6("Recent Actions:", className="mt-3"),
+                                            html.Div(id='action-log', children="No actions yet")
+                                        ], width=6),
+                                        
+                                        dbc.Col([
+                                            html.H6("File Information", className="mb-3"),
+                                            html.Div(id='file-info', children="No files selected"),
+                                            html.Hr(),
+                                            html.H6("Analysis Options:", className="mt-3"),
+                                            html.Div(id='analysis-options', children="Select files to see options")
+                                        ], width=6)
+                                    ])
+                                ])
                             ])
                         ])
-                    ], width=6)
+                    ], width=10)
                 ]),
                 
                 html.Div(id='output-data-upload'),
