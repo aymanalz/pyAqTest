@@ -9,11 +9,6 @@ import dash_bootstrap_components as dbc
 
 from dashboard import create_main_layout, register_callbacks
 
-class DataStorage:
-    pass
-
-data_storage = DataStorage()
-
 def create_app():
     """Create and configure the main Dash app"""
     
@@ -89,6 +84,10 @@ def create_app():
 
 def main():
     """Main function to run the app"""
+    # Example: Read INI file and add to data storage
+    # You can call this function with any INI filename
+    # read_ini_file("config.ini")
+    
     app = create_app()
     
     # Run the app

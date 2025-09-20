@@ -9,10 +9,23 @@ from dash import html, dcc
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
 import base64
+import pandas as pd
+from .data_storage import get_data_storage, add_data
+from .utils import read_ini_file
 
-def create_ini_config_form(config_dict, filename):
+def create_ini_config_form(config_dict, filename, file_path=None):
     """Create a neat form with INI config file content"""
     form_elements = []
+    
+    # Get the actual file path from global data storage
+    import os
+    data_storage = get_data_storage()
+    if 'file_path' in data_storage:
+        folder_path = os.path.dirname(data_storage['file_path'])
+    elif file_path:
+        folder_path = os.path.dirname(file_path)
+    else:
+        folder_path = "Unknown"
     
     # Add file info header
     form_elements.append(
@@ -23,7 +36,7 @@ def create_ini_config_form(config_dict, filename):
             ]),
             dbc.CardBody([
                 # File path info
-                html.P(f"📁 Path: {config_dict.get('file_path', 'Unknown')}", className="mb-2"),
+                html.P(f"📁 Path: {folder_path}", className="mb-2"),
                 html.P(f"📊 Sections: {len(config_dict)}", className="mb-0")
             ])
         ], className="mb-3")
@@ -73,6 +86,90 @@ def create_ini_config_form(config_dict, filename):
     
     return form_elements
 
+def create_csv_table(df, filename):
+    """Create an interactive table from CSV data"""
+    if df is None or df.empty:
+        return html.Div([
+            html.H6("No data available", className="text-muted"),
+            html.P("The CSV file appears to be empty or invalid")
+        ])
+    
+    # Create table header with file info
+    header = dbc.Card([
+        dbc.CardHeader([
+            html.H5(f"📊 {filename}", className="mb-0"),
+            html.Small("Batch Data File", className="text-muted")
+        ]),
+        dbc.CardBody([
+            html.P(f"📈 Rows: {len(df)}", className="mb-1"),
+            html.P(f"📋 Columns: {len(df.columns)}", className="mb-0")
+        ])
+    ], className="mb-3")
+    
+    # Create interactive table using dash_table
+    table = dcc.Graph(
+        figure={
+            'data': [{
+                'type': 'table',
+                'header': {
+                    'values': df.columns.tolist(),
+                    'fill': {'color': '#007bff'},
+                    'font': {'color': 'white', 'size': 12}
+                },
+                'cells': {
+                    'values': [df[col].tolist() for col in df.columns],
+                    'fill': {'color': ['#f8f9fa', 'white']},
+                    'font': {'size': 11},
+                    'height': 30
+                }
+            }],
+            'layout': {
+                'title': f'Batch Data: {filename}',
+                'height': min(600, 200 + len(df) * 30),
+                'margin': {'l': 10, 'r': 10, 't': 50, 'b': 10}
+            }
+        },
+        config={'displayModeBar': False}
+    )
+    
+    # Add summary statistics
+    summary_stats = []
+    for col in df.columns:
+        if df[col].dtype in ['int64', 'float64']:
+            summary_stats.append(
+                dbc.Row([
+                    dbc.Col([html.Strong(f"{col}:")], width=3),
+                    dbc.Col([f"Min: {df[col].min():.2f}"], width=3),
+                    dbc.Col([f"Max: {df[col].max():.2f}"], width=3),
+                    dbc.Col([f"Mean: {df[col].mean():.2f}"], width=3)
+                ], className="mb-1")
+            )
+    
+    summary_card = dbc.Card([
+        dbc.CardHeader([html.H6("📈 Summary Statistics", className="mb-0")]),
+        dbc.CardBody(summary_stats) if summary_stats else html.P("No numeric columns found", className="text-muted")
+    ], className="mb-3") if summary_stats else None
+    
+    # Add export buttons
+    export_buttons = dbc.Card([
+        dbc.CardBody([
+            dbc.Row([
+                dbc.Col([
+                    dbc.Button("📊 View Full Data", color="primary", className="me-2"),
+                    dbc.Button("📤 Export CSV", color="success", className="me-2"),
+                    dbc.Button("📋 Copy Data", color="info")
+                ], width=12)
+            ])
+        ])
+    ])
+    
+    components = [header, table]
+    if summary_card:
+        components.append(summary_card)
+    components.append(export_buttons)
+    
+    return components
+
 def register_callbacks(app):
     """Register all callbacks with the app"""
     
@@ -116,7 +213,11 @@ def register_callbacks(app):
                                 label="Batch Table",
                                 tab_id="batch-table-tab",
                                 children=[
-                                    html.Div(id='batch-table-info', children="No batch data loaded")
+                                    html.Div([
+                                        html.H6("Batch Data Table", className="mb-3"),
+                                        html.P("CSV data will be automatically loaded from the INI file configuration", className="text-muted mb-3"),
+                                        html.Div(id='batch-table-info', children="No batch data loaded")
+                                    ])
                                 ]
                             )
                         ], id="file-details-tabs", active_tab="settings-tab"),
@@ -204,62 +305,80 @@ def register_callbacks(app):
             
             full_path = os.path.abspath(filename) if filename else "Unknown path"
             
-            # Store in data_storage class (you can expand this class as needed)
-            class DataStorage:
-                def __init__(self):
-                    self.file_path = None
-                    self.file_name = None
-                    self.file_contents = None
-                    self.parsed_config = None
-                
-                def store_file(self, path, name, contents):
-                    self.file_path = path
-                    self.file_name = name
-                    self.file_contents = contents
-                    # Parse the INI file
-                    self.parsed_config = self.parse_ini_config(contents)
-                
-                def parse_ini_config(self, contents):
-                    """Parse INI config file"""
-                    try:
-                        # Decode base64 content
-                        decoded = base64.b64decode(contents.split(',')[1]).decode('utf-8')
-                        
-                        # Parse as INI file
-                        config = configparser.ConfigParser()
-                        config.read_string(decoded)
-                        
-                        # Convert to dictionary for easy access
-                        config_dict = {}
-                        for section in config.sections():
-                            config_dict[section] = dict(config[section])
-                        
-                        return config_dict
-                    except Exception as e:
-                        return {"error": f"Failed to parse INI file: {str(e)}"}
-                
-                def get_file_info(self):
-                    return {
-                        'path': self.file_path,
-                        'name': self.file_name,
-                        'has_contents': self.file_contents is not None,
-                        'parsed_config': self.parsed_config
-                    }
+            # Use global data storage
+            data_storage = get_data_storage()
+            add_data('file_path', full_path)
+            add_data('file_name', filename)
+           
+            try:
+                decoded = base64.b64decode(contents.split(',')[1]).decode('utf-8')
+                config = configparser.ConfigParser()
+                config.read_string(decoded)
+                config_dict = {}
+                for section in config.sections():
+                    config_dict[section] = dict(config[section])
+                add_data('parsed_config', config_dict)
+            except Exception as e:
+                add_data('parsed_config', {"error": f"Failed to parse INI file: {str(e)}"})
             
-            # Create or update data storage
-            if not hasattr(app, 'data_storage'):
-                app.data_storage = DataStorage()
-            
-            app.data_storage.store_file(full_path, filename, contents)
+            # Auto-load CSV file if batch_data_file is specified in INI
+            parsed_config = data_storage.get('parsed_config', {})
+            if parsed_config and "error" not in parsed_config:
+                # Check for batch_data_file in Input Info section
+                if "Input Info" in parsed_config:
+                    input_info = parsed_config["Input Info"]
+                    if "batch_data_file" in input_info:
+                        csv_path = input_info["batch_data_file"]
+                        # Try to load the CSV file
+                        try:
+                            import pandas as pd
+                            # Check if path is relative or absolute
+                            if not os.path.isabs(csv_path):
+                                # Make relative to INI file directory
+                                ini_dir = os.path.dirname(full_path)
+                                csv_path = os.path.join(ini_dir, csv_path)
+                            
+                            # Load CSV file
+                            if os.path.exists(csv_path):
+                                df = pd.read_csv(csv_path)
+                                add_data('csv_batch_data', df)
+                                add_data('csv_filename', os.path.basename(csv_path))
+                            else:
+                                add_data('csv_batch_data', None)
+                                add_data('csv_filename', None)
+                        except Exception as e:
+                            add_data('csv_batch_data', None)
+                            add_data('csv_filename', None)
+                            print(f"Error loading CSV file: {e}")
             
             # Create form with INI config content
-            if app.data_storage.parsed_config and "error" not in app.data_storage.parsed_config:
-                form_content = create_ini_config_form(app.data_storage.parsed_config, filename)
+            if parsed_config and "error" not in parsed_config:
+                form_content = create_ini_config_form(parsed_config, filename, full_path)
             else:
-                form_content = f"Error loading INI file: {app.data_storage.parsed_config.get('error', 'Unknown error')}"
+                form_content = f"Error loading INI file: {parsed_config.get('error', 'Unknown error')}"
             
             return form_content
         return "No file selected"
+    
+    # Callback to auto-update Batch Table when INI file is loaded
+    @app.callback(
+        dash.dependencies.Output('batch-table-info', 'children'),
+        [dash.dependencies.Input('file-input', 'contents')],
+        [dash.dependencies.State('file-input', 'filename')],
+        prevent_initial_call=True
+    )
+    def auto_update_batch_table(contents, filename):
+        """Auto-update batch table when INI file is loaded"""
+        data_storage = get_data_storage()
+        if contents is not None and data_storage.get('csv_batch_data') is not None:
+            return create_csv_table(data_storage['csv_batch_data'], data_storage.get('csv_filename'))
+        elif contents is not None and data_storage.get('csv_batch_data') is None:
+            return html.Div([
+                html.H6("No CSV data found", className="text-warning"),
+                html.P("The INI file does not contain a valid 'batch_data_file' path in the 'Input Info' section"),
+                html.P("Or the CSV file could not be loaded from the specified path")
+            ])
+        return "No batch data loaded"
     
     # Callback for load batch button
     @app.callback(
@@ -270,6 +389,14 @@ def register_callbacks(app):
     def load_batch_file(n_clicks):
         """Handle load batch file button"""
         if n_clicks:
+            # Example: Read INI file using utils function
+            # You can call this with any INI filename
+            # success = read_ini_file("config.ini")
+            # if success:
+            #     return "INI file loaded successfully!"
+            # else:
+            #     return "Failed to load INI file"
+            
             return "Load action triggered - use Choose File button to select .ini file"
         return dash.no_update
     
