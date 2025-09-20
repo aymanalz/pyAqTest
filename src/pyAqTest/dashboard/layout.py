@@ -128,14 +128,6 @@ def create_upload_tab():
                                     ])
                                 ]),
                                 
-                                # Hidden file input for .ini files
-                                dcc.Upload(
-                                    id="file-input",
-                                    children=html.Div(),
-                                    style={"display": "none"},
-                                    accept=".ini",
-                                    multiple=False
-                                )
                             ])
                         ])
                     ], width=10)

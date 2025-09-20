@@ -5,7 +5,7 @@ Contains all callback functions for the Batch Slug Test Analysis dashboard.
 """
 
 import dash
-from dash import html
+from dash import html, dcc
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
 import base64
@@ -89,7 +89,19 @@ def register_callbacks(app):
                     dbc.Col([
                         html.H6("Load Batch File", className="mb-3"),
                         html.P("Select and load an existing batch file for analysis", className="text-muted mb-3"),
-                        dbc.Button("Choose File", color="primary", id="choose-file-btn"),
+                        
+                        # Direct file input - no Choose File button needed
+                        dcc.Upload(
+                            id="file-input",
+                            children=html.Div([
+                                html.A('📁 Choose .ini File', 
+                                       style={'color': 'white', 'textDecoration': 'none', 'fontWeight': 'bold', 'fontSize': '16px'})
+                            ], style={'padding': '12px 24px', 'backgroundColor': '#007bff', 'borderRadius': '6px', 'cursor': 'pointer', 'display': 'inline-block', 'border': 'none', 'textAlign': 'center'}),
+                            style={"display": "block", "margin": "10px 0"},
+                            accept=".ini",
+                            multiple=False
+                        ),
+                        
                         html.Hr(),
                         html.H6("File Details", className="mb-3"),
                         dbc.Tabs([
@@ -174,30 +186,6 @@ def register_callbacks(app):
             ]
         return dash.no_update
     
-    # Callback for Choose File button to trigger file input
-    @app.callback(
-        dash.dependencies.Output('file-input', 'style'),
-        [dash.dependencies.Input('choose-file-btn', 'n_clicks')],
-        prevent_initial_call=True
-    )
-    def trigger_file_input(n_clicks):
-        """Trigger file input when Choose File button is clicked"""
-        if n_clicks:
-            # Temporarily show file input overlay when Choose File is clicked
-            return {"display": "block", "position": "fixed", "top": "0", "left": "0", "width": "100vw", "height": "100vh", "z-index": "9999", "opacity": "0", "cursor": "pointer"}
-        return {"display": "none"}
-    
-    # Callback to hide file input after file selection
-    @app.callback(
-        dash.dependencies.Output('file-input', 'style', allow_duplicate=True),
-        [dash.dependencies.Input('file-input', 'contents')],
-        prevent_initial_call=True
-    )
-    def hide_file_input_after_selection(contents):
-        """Hide file input after file is selected"""
-        if contents is not None:
-            return {"display": "none"}
-        return dash.no_update
 
     # Callback for file input to handle .ini file selection
     @app.callback(
