@@ -9,6 +9,11 @@ import dash_bootstrap_components as dbc
 
 from dashboard import create_main_layout, register_callbacks
 
+class DataStorage:
+    pass
+
+data_storage = DataStorage()
+
 def create_app():
     """Create and configure the main Dash app"""
     

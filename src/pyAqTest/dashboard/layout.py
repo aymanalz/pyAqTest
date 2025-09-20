@@ -106,9 +106,6 @@ def create_upload_tab():
                     dbc.Col([
                         dbc.Card([
                             dbc.CardBody([
-                                html.H2("Upload Slug Test Data", className="mb-4"),
-                                html.P("Select your slug test data files for analysis", className="text-muted mb-4"),
-                                
                                 # Tab content
                                 html.Div(id="action-tab-content", children=[
                                     # Status section
@@ -129,7 +126,16 @@ def create_upload_tab():
                                             html.Div(id='analysis-options', children="Select files to see options")
                                         ], width=6)
                                     ])
-                                ])
+                                ]),
+                                
+                                # Hidden file input for .ini files
+                                dcc.Upload(
+                                    id="file-input",
+                                    children=html.Div(),
+                                    style={"display": "none"},
+                                    accept=".ini",
+                                    multiple=False
+                                )
                             ])
                         ])
                     ], width=10)

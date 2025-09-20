@@ -10,6 +10,69 @@ import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
 import base64
 
+def create_ini_config_form(config_dict, filename):
+    """Create a neat form with INI config file content"""
+    form_elements = []
+    
+    # Add file info header
+    form_elements.append(
+        dbc.Card([
+            dbc.CardHeader([
+                html.H5(f"📄 {filename}", className="mb-0"),
+                html.Small("INI Configuration File", className="text-muted")
+            ]),
+            dbc.CardBody([
+                # File path info
+                html.P(f"📁 Path: {config_dict.get('file_path', 'Unknown')}", className="mb-2"),
+                html.P(f"📊 Sections: {len(config_dict)}", className="mb-0")
+            ])
+        ], className="mb-3")
+    )
+    
+    # Create form for each section
+    for section_name, section_data in config_dict.items():
+        if section_name == "file_path":
+            continue
+            
+        # Section header
+        form_elements.append(
+            dbc.Card([
+                dbc.CardHeader([
+                    html.H6(f"🔧 {section_name.replace('_', ' ').title()}", className="mb-0")
+                ]),
+                dbc.CardBody([
+                    # Create form fields for each key-value pair
+                    dbc.Row([
+                        dbc.Col([
+                            dbc.Label(key.replace('_', ' ').title(), className="fw-bold"),
+                            dbc.Input(
+                                value=str(value),
+                                id=f"config-{section_name}-{key}",
+                                className="mb-2"
+                            )
+                        ], width=6) for key, value in section_data.items()
+                    ])
+                ])
+            ], className="mb-3")
+        )
+    
+    # Add action buttons
+    form_elements.append(
+        dbc.Card([
+            dbc.CardBody([
+                dbc.Row([
+                    dbc.Col([
+                        dbc.Button("💾 Save Changes", color="primary", className="me-2"),
+                        dbc.Button("🔄 Reset", color="secondary", className="me-2"),
+                        dbc.Button("📤 Export", color="info")
+                    ], width=12)
+                ])
+            ])
+        ])
+    )
+    
+    return form_elements
+
 def register_callbacks(app):
     """Register all callbacks with the app"""
     
@@ -26,17 +89,29 @@ def register_callbacks(app):
                     dbc.Col([
                         html.H6("Load Batch File", className="mb-3"),
                         html.P("Select and load an existing batch file for analysis", className="text-muted mb-3"),
-                        dbc.Button("Choose File", color="primary", className="me-2"),
-                        dbc.Button("Browse", color="secondary")
-                    ], width=6),
-                    
-                    dbc.Col([
+                        dbc.Button("Choose File", color="primary", id="choose-file-btn"),
+                        html.Hr(),
                         html.H6("File Details", className="mb-3"),
-                        html.Div(id='load-file-info', children="No file selected"),
+                        dbc.Tabs([
+                            dbc.Tab(
+                                label="Settings File Details",
+                                tab_id="settings-tab",
+                                children=[
+                                    html.Div(id='load-file-info', children="No file selected")
+                                ]
+                            ),
+                            dbc.Tab(
+                                label="Batch Table",
+                                tab_id="batch-table-tab",
+                                children=[
+                                    html.Div(id='batch-table-info', children="No batch data loaded")
+                                ]
+                            )
+                        ], id="file-details-tabs", active_tab="settings-tab"),
                         html.Hr(),
                         html.H6("Recent Files:", className="mt-3"),
                         html.Div(id='recent-files', children="No recent files")
-                    ], width=6)
+                    ], width=12)
                 ])
             ]
         return "Select an action"
@@ -99,43 +174,140 @@ def register_callbacks(app):
             ]
         return dash.no_update
     
+    # Callback for Choose File button to trigger file input
+    @app.callback(
+        dash.dependencies.Output('file-input', 'style'),
+        [dash.dependencies.Input('choose-file-btn', 'n_clicks')],
+        prevent_initial_call=True
+    )
+    def trigger_file_input(n_clicks):
+        """Trigger file input when Choose File button is clicked"""
+        if n_clicks:
+            # Temporarily show file input overlay when Choose File is clicked
+            return {"display": "block", "position": "fixed", "top": "0", "left": "0", "width": "100vw", "height": "100vh", "z-index": "9999", "opacity": "0", "cursor": "pointer"}
+        return {"display": "none"}
+    
+    # Callback to hide file input after file selection
+    @app.callback(
+        dash.dependencies.Output('file-input', 'style', allow_duplicate=True),
+        [dash.dependencies.Input('file-input', 'contents')],
+        prevent_initial_call=True
+    )
+    def hide_file_input_after_selection(contents):
+        """Hide file input after file is selected"""
+        if contents is not None:
+            return {"display": "none"}
+        return dash.no_update
+
+    # Callback for file input to handle .ini file selection
+    @app.callback(
+        dash.dependencies.Output('load-file-info', 'children'),
+        [dash.dependencies.Input('file-input', 'contents')],
+        [dash.dependencies.State('file-input', 'filename')],
+        prevent_initial_call=True
+    )
+    def handle_file_upload(contents, filename):
+        """Handle .ini file upload"""
+        if contents is not None:
+            # File was selected - capture full file path
+            import os
+            import base64
+            import configparser
+            
+            full_path = os.path.abspath(filename) if filename else "Unknown path"
+            
+            # Store in data_storage class (you can expand this class as needed)
+            class DataStorage:
+                def __init__(self):
+                    self.file_path = None
+                    self.file_name = None
+                    self.file_contents = None
+                    self.parsed_config = None
+                
+                def store_file(self, path, name, contents):
+                    self.file_path = path
+                    self.file_name = name
+                    self.file_contents = contents
+                    # Parse the INI file
+                    self.parsed_config = self.parse_ini_config(contents)
+                
+                def parse_ini_config(self, contents):
+                    """Parse INI config file"""
+                    try:
+                        # Decode base64 content
+                        decoded = base64.b64decode(contents.split(',')[1]).decode('utf-8')
+                        
+                        # Parse as INI file
+                        config = configparser.ConfigParser()
+                        config.read_string(decoded)
+                        
+                        # Convert to dictionary for easy access
+                        config_dict = {}
+                        for section in config.sections():
+                            config_dict[section] = dict(config[section])
+                        
+                        return config_dict
+                    except Exception as e:
+                        return {"error": f"Failed to parse INI file: {str(e)}"}
+                
+                def get_file_info(self):
+                    return {
+                        'path': self.file_path,
+                        'name': self.file_name,
+                        'has_contents': self.file_contents is not None,
+                        'parsed_config': self.parsed_config
+                    }
+            
+            # Create or update data storage
+            if not hasattr(app, 'data_storage'):
+                app.data_storage = DataStorage()
+            
+            app.data_storage.store_file(full_path, filename, contents)
+            
+            # Create form with INI config content
+            if app.data_storage.parsed_config and "error" not in app.data_storage.parsed_config:
+                form_content = create_ini_config_form(app.data_storage.parsed_config, filename)
+            else:
+                form_content = f"Error loading INI file: {app.data_storage.parsed_config.get('error', 'Unknown error')}"
+            
+            return form_content
+        return "No file selected"
+    
     # Callback for load batch button
     @app.callback(
-        [dash.dependencies.Output('upload-status', 'children'),
-         dash.dependencies.Output('action-log', 'children')],
-        [dash.dependencies.Input('load-batch-btn', 'n_clicks')]
+        dash.dependencies.Output('load-file-info', 'children', allow_duplicate=True),
+        [dash.dependencies.Input('load-action-btn', 'n_clicks')],
+        prevent_initial_call=True
     )
     def load_batch_file(n_clicks):
         """Handle load batch file button"""
         if n_clicks:
-            return "Batch file loaded successfully!", f"• Loaded batch file (click #{n_clicks})"
-        return "No batch file loaded", "No actions yet"
+            return "Load action triggered - use Choose File button to select .ini file"
+        return dash.no_update
     
     # Callback for new batch button
     @app.callback(
-        [dash.dependencies.Output('upload-status', 'children', allow_duplicate=True),
-         dash.dependencies.Output('action-log', 'children', allow_duplicate=True)],
-        [dash.dependencies.Input('new-batch-btn', 'n_clicks')],
+        dash.dependencies.Output('load-file-info', 'children', allow_duplicate=True),
+        [dash.dependencies.Input('new-action-btn', 'n_clicks')],
         prevent_initial_call=True
     )
     def new_batch_file(n_clicks):
         """Handle new batch file button"""
         if n_clicks:
-            return "New batch file created!", f"• Created new batch file (click #{n_clicks})"
-        return dash.no_update, dash.no_update
+            return "New batch action triggered - create new batch configuration"
+        return dash.no_update
     
     # Callback for save button
     @app.callback(
-        [dash.dependencies.Output('upload-status', 'children', allow_duplicate=True),
-         dash.dependencies.Output('action-log', 'children', allow_duplicate=True)],
-        [dash.dependencies.Input('save-btn', 'n_clicks')],
+        dash.dependencies.Output('load-file-info', 'children', allow_duplicate=True),
+        [dash.dependencies.Input('save-action-btn', 'n_clicks')],
         prevent_initial_call=True
     )
     def save_batch_file(n_clicks):
         """Handle save button"""
         if n_clicks:
-            return "Batch file saved successfully!", f"• Saved batch file (click #{n_clicks})"
-        return dash.no_update, dash.no_update
+            return "Save action triggered - save current batch configuration"
+        return dash.no_update
     
     # Callback for upload button
     @app.callback(
