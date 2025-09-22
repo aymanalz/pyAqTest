@@ -13,6 +13,7 @@ import pandas as pd
 import os
 import configparser
 from .data_storage import get_data_storage, add_data
+from .analysis_callbacks import register_analysis_callbacks
 
 def create_ini_config_form(config_dict, filename, file_path=None):
     """Create a neat form with INI config file content"""
@@ -431,107 +432,6 @@ def register_callbacks(app):
                 html.P(f"Error: {str(e)}")
             ])
     
-    # Callback for analysis button
-    @app.callback(
-        dash.dependencies.Output('analysis-plot', 'figure', allow_duplicate=True),
-        [dash.dependencies.Input('run-analysis', 'n_clicks')],
-        [dash.dependencies.State('well-name', 'value'),
-         dash.dependencies.State('test-date', 'value')],
-        prevent_initial_call=True
-    )
-    def run_analysis(n_clicks, well_name, test_date):
-        """Run analysis when button is clicked"""
-        if n_clicks is None:
-            return go.Figure()
-        
-        # Create analysis plot
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 
-            y=[10, 8, 6, 4, 3, 2.5, 2, 1.8, 1.6, 1.5], 
-            mode='lines+markers',
-            name=f'Well: {well_name or "Unknown"}',
-            line=dict(color='red', width=3)
-        ))
-        
-        fig.update_layout(
-            title=f"Slug Test Analysis - {well_name or 'Unknown Well'}",
-            xaxis_title="Time (minutes)",
-            yaxis_title="Head (ft)",
-            height=500,
-            width=None,
-            autosize=True,
-            margin=dict(l=50, r=50, t=50, b=50),
-            template="plotly_white"
-        )
-        
-        return fig
-    
-    # Callback for summary statistics
-    @app.callback(
-        dash.dependencies.Output('summary-stats', 'children'),
-        [dash.dependencies.Input('analysis-plot', 'figure')]
-    )
-    def update_summary_stats(figure):
-        """Update summary statistics based on analysis"""
-        if not figure or not figure.get('data'):
-            return "No data available"
-        
-        # Mock summary statistics
-        stats = [
-            html.P("📊 Analysis Summary:", className="fw-bold"),
-            html.P("• Hydraulic Conductivity: 2.5 × 10⁻⁴ ft/s"),
-            html.P("• Transmissivity: 1.2 × 10⁻³ ft²/s"),
-            html.P("• Storage Coefficient: 0.001"),
-            html.P("• Recovery Time: 45 minutes"),
-            html.P("• R² Value: 0.98")
-        ]
-        
-        return stats
-    
-    # Callback for results table
-    @app.callback(
-        dash.dependencies.Output('results-table', 'children'),
-        [dash.dependencies.Input('analysis-plot', 'figure')]
-    )
-    def update_results_table(figure):
-        """Update results table based on analysis"""
-        if not figure or not figure.get('data'):
-            return "No results available"
-        
-        # Mock results table
-        table = dbc.Table([
-            html.Thead([
-                html.Tr([
-                    html.Th("Parameter"),
-                    html.Th("Value"),
-                    html.Th("Units"),
-                    html.Th("Confidence")
-                ])
-            ]),
-            html.Tbody([
-                html.Tr([
-                    html.Td("Hydraulic Conductivity"),
-                    html.Td("2.5 × 10⁻⁴"),
-                    html.Td("ft/s"),
-                    html.Td("95%")
-                ]),
-                html.Tr([
-                    html.Td("Transmissivity"),
-                    html.Td("1.2 × 10⁻³"),
-                    html.Td("ft²/s"),
-                    html.Td("95%")
-                ]),
-                html.Tr([
-                    html.Td("Storage Coefficient"),
-                    html.Td("0.001"),
-                    html.Td("dimensionless"),
-                    html.Td("90%")
-                ])
-            ])
-        ], striped=True, bordered=True, hover=True)
-        
-        return table
     
     # Callback for column search functionality
     @app.callback(
@@ -640,3 +540,6 @@ def register_callbacks(app):
                 initial_cols = df.columns[:10].tolist() if len(df.columns) > 10 else df.columns.tolist()
                 return initial_cols, ""
         return dash.no_update, dash.no_update
+    
+    # Register analysis callbacks
+    register_analysis_callbacks(app)

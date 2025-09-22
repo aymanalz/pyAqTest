@@ -146,33 +146,13 @@ def create_analysis_tab():
         children=[
             html.Div([
                 html.H2("Slug Test Analysis", className="mb-4"),
-                html.P("View and analyze your slug test data", className="text-muted mb-4"),
+                html.P("Select tests and run analysis on your slug test data", className="text-muted mb-4"),
                 
-                # Analysis controls
-                dbc.Row([
-                    dbc.Col([
-                        dbc.Card([
-                            dbc.CardBody([
-                                html.H5("Analysis Parameters", className="card-title"),
-                                dbc.Label("Well Name:"),
-                                dbc.Input(id="well-name", placeholder="Enter well name"),
-                                html.Br(),
-                                dbc.Label("Test Date:"),
-                                dbc.Input(id="test-date", type="date"),
-                                html.Br(),
-                                dbc.Button("Run Analysis", id="run-analysis", color="primary", className="mt-2")
-                            ])
-                        ])
-                    ], width=4),
-                    
-                    dbc.Col([
-                        dcc.Graph(
-                            id='analysis-plot',
-                            style={'height': '500px', 'width': '100%'},
-                            config={'displayModeBar': True, 'displaylogo': False}
-                        )
-                    ], width=8)
-                ])
+                # Test Selection Card (dynamically created)
+                html.Div(id="test-selection-card"),
+                
+                # Analysis Status
+                html.Div(id="analysis-status", className="mb-4")
             ])
         ]
     )
