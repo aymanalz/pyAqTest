@@ -198,6 +198,121 @@ def create_results_tab():
         ]
     )
 
+def create_sensitivity_tab():
+    """Create the sensitivity analysis tab content"""
+    return dbc.Tab(
+        label="🔬 Sensitivity",
+        tab_id="sensitivity-tab",
+        children=[
+            html.Div([
+                html.H2("Sensitivity Analysis", className="mb-4"),
+                html.P("Analyze parameter sensitivity and uncertainty in slug test results", className="text-muted mb-4"),
+                
+                # Sensitivity Analysis Controls
+                dbc.Row([
+                    dbc.Col([
+                        dbc.Card([
+                            dbc.CardBody([
+                                html.H5("Sensitivity Parameters", className="card-title"),
+                                dbc.Label("Parameter to Analyze:"),
+                                dbc.Select(
+                                    id="sensitivity-parameter",
+                                    options=[
+                                        {"label": "Hydraulic Conductivity (K)", "value": "K"},
+                                        {"label": "Transmissivity (T)", "value": "T"},
+                                        {"label": "Storage Coefficient (S)", "value": "S"},
+                                        {"label": "Well Radius (rw)", "value": "rw"},
+                                        {"label": "Screen Length (L)", "value": "L"}
+                                    ],
+                                    value="K"
+                                ),
+                                html.Br(),
+                                dbc.Label("Variation Range (%):"),
+                                dbc.Input(
+                                    id="variation-range",
+                                    type="number",
+                                    value=20,
+                                    min=1,
+                                    max=100,
+                                    step=1
+                                ),
+                                html.Br(),
+                                dbc.Label("Number of Steps:"),
+                                dbc.Input(
+                                    id="sensitivity-steps",
+                                    type="number",
+                                    value=10,
+                                    min=3,
+                                    max=50,
+                                    step=1
+                                ),
+                                html.Br(),
+                                dbc.Button("Run Sensitivity Analysis", id="run-sensitivity", color="primary", className="mt-3")
+                            ])
+                        ])
+                    ], width=6),
+                    
+                    dbc.Col([
+                        dbc.Card([
+                            dbc.CardBody([
+                                html.H5("Analysis Options", className="card-title"),
+                                dbc.Label("Analysis Method:"),
+                                dbc.Select(
+                                    id="sensitivity-method",
+                                    options=[
+                                        {"label": "Monte Carlo", "value": "monte_carlo"},
+                                        {"label": "Parameter Sweep", "value": "parameter_sweep"},
+                                        {"label": "Tornado Diagram", "value": "tornado"}
+                                    ],
+                                    value="parameter_sweep"
+                                ),
+                                html.Br(),
+                                dbc.Label("Output Format:"),
+                                dbc.Select(
+                                    id="sensitivity-output",
+                                    options=[
+                                        {"label": "Graph", "value": "graph"},
+                                        {"label": "Table", "value": "table"},
+                                        {"label": "Both", "value": "both"}
+                                    ],
+                                    value="both"
+                                ),
+                                html.Br(),
+                                dbc.Label("Confidence Level:"),
+                                dbc.Select(
+                                    id="confidence-level",
+                                    options=[
+                                        {"label": "90%", "value": "90"},
+                                        {"label": "95%", "value": "95"},
+                                        {"label": "99%", "value": "99"}
+                                    ],
+                                    value="95"
+                                )
+                            ])
+                        ])
+                    ], width=6)
+                ], className="mb-4"),
+                
+                # Sensitivity Results
+                html.Div(id="sensitivity-results", className="mb-4"),
+                
+                # Sensitivity Plot
+                dbc.Row([
+                    dbc.Col([
+                        dcc.Graph(
+                            id='sensitivity-plot',
+                            style={'height': '500px', 'width': '100%'},
+                            config={'displayModeBar': True, 'displaylogo': False}
+                        )
+                    ], width=12)
+                ]),
+                
+                # Sensitivity Table
+                html.Div(id="sensitivity-table", className="mt-4")
+            ])
+        ]
+    )
+
 def create_settings_tab():
     """Create the settings tab content"""
     return dbc.Tab(
@@ -298,6 +413,7 @@ def create_main_layout():
                         create_upload_tab(),
                         create_analysis_tab(),
                         create_results_tab(),
+                        create_sensitivity_tab(),
                         create_settings_tab()
                     ], id="main-tabs", active_tab="upload-tab", 
                     style={

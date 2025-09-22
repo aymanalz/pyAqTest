@@ -10,6 +10,7 @@ import math
 from scipy.stats import linregress
 from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
+import statsmodels.api as sm
 
 from pyAqTest import Aquifer
 from pyAqTest import SlugWell
@@ -141,8 +142,19 @@ class Bouwer_Rice_1976(AquiferTestBase):
         recovery_time = time[recovery_start:]
         return recovery_depth, recovery_time
 
-    def fit(self, x, y):
-        result = linregress(x, y)
+    def fit(self, x, y, method='scipy'):
+        if method == 'scipy':
+            result = linregress(x, y)
+        elif method == 'Huber':
+            huber_model = sm.RLM(y, x, M=sm.robust.norms.HuberT())
+            huber_results = huber_model.fit()
+            result = huber_results
+        elif method == 'Tukey':
+            tukey_model = sm.RLM(y, x, M=sm.robust.norms.TukeyBiweight())
+            tukey_results = tukey_model.fit()
+            result = tukey_results
+        else:
+            raise ValueError(f"Invalid method: {method}")
         return result
 
     def analyze(self) -> None:
@@ -197,7 +209,7 @@ class Bouwer_Rice_1976(AquiferTestBase):
         mask = np.logical_and(h_normalized >= 0.1, h_normalized <= 0.3)
         mask2 = np.abs(h_normalized) > 10e-6
         mask = np.logical_and(mask2, mask)
-        fit_result = self.fit(x=time[mask], y=np.log(np.abs(h_normalized[mask])))
+        fit_result = self.fit(x=time[mask], y=np.log(np.abs(h_normalized[mask])), robust=True)
 
         # plot
         fig = plt.figure()

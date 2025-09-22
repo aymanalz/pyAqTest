@@ -108,8 +108,8 @@ class Batch_Processing:
                 # check if all values are na
                 if row.isna().all():
                     continue
-                # if int(irow)> 3: # debug
-                #     continue
+                if int(irow)> 3: # debug
+                    continue
                 
                 test_type = row.get("test_type")
                 aquifer_name = row.get("aquifer_name")

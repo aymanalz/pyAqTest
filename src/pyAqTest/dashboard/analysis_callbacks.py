@@ -53,7 +53,6 @@ def register_analysis_callbacks(app):
                                 
                                 # Right side - Run analysis button
                                 dbc.Col([
-                                    dbc.Label("Analysis Control:", className="fw-bold mb-2"),
                                     dbc.ButtonGroup([
                                         dbc.Button([
                                             html.I(className="fas fa-play me-2"),
@@ -64,8 +63,7 @@ def register_analysis_callbacks(app):
                                         size="lg",
                                         className="w-100"
                                         )
-                                    ], vertical=True),
-                                    html.Small("Click to start analysis", className="text-muted mt-1")
+                                    ], vertical=True)
                                 ], width=4)
                             ])
                         ])
