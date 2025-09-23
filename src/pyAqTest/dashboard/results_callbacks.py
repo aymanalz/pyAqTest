@@ -3,7 +3,8 @@ Results Tab Callbacks
 =====================
 Callbacks specifically for the Results tab functionality.
 """
-
+import os
+import pandas as pd
 import dash
 from dash import html, dcc
 import dash_bootstrap_components as dbc
@@ -44,6 +45,21 @@ def register_results_callbacks(app):
         if options:
             return options[0]['value']
         return dash.no_update
+
+    @app.callback(
+        dash.dependencies.Output('results-selection-message', 'children'),
+        [dash.dependencies.Input('results-test-selector', 'value')],
+        prevent_initial_call=True
+    )
+    def update_results_selection_message(selected_test_id):
+        """Display a message when a test is selected in Results tab."""
+        if not selected_test_id:
+            return ""
+        return dbc.Alert(
+            f"Selected test: {selected_test_id}",
+            color="info",
+            dismissable=True,
+        )
 
     @app.callback(
         dash.dependencies.Output("summary-stats", "children"),
@@ -90,6 +106,10 @@ def register_results_callbacks(app):
     )
     def update_results_table(n_clicks, selected_result_test, selected_tests):
         """Update the results table when analysis runs."""
+        data_storag = get_data_storage()
+        output_folder = data_storag['parsed_config']['Output Info']['output_folder']
+        estimatedKFn = os.path.join(output_folder, 'estimated_conductivity.csv')
+        result_df = pd.read_csv(estimatedKFn)
         if not n_clicks:
             return ""
 

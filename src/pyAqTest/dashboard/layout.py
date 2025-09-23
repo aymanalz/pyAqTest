@@ -179,6 +179,9 @@ def create_results_tab():
                         )
                     ], width=6)
                 ], className="mb-3"),
+
+                # Selection message
+                html.Div(id="results-selection-message", className="mb-2"),
                 
                 # Results summary
                 dbc.Row([
