@@ -100,7 +100,7 @@ def create_upload_tab():
                                 )
                             ])
                         ])
-                    ], width=2),
+                    ], width=1),
                     
                     # Main content column (wide)
                     dbc.Col([
@@ -130,7 +130,7 @@ def create_upload_tab():
                                 
                             ])
                         ])
-                    ], width=10)
+                    ], width=11)
                 ]),
                 
                 html.Div(id='output-data-upload'),
@@ -166,6 +166,19 @@ def create_results_tab():
             html.Div([
                 html.H2("Analysis Results", className="mb-4"),
                 html.P("View detailed results and export data", className="text-muted mb-4"),
+                # Results test selector
+                dbc.Row([
+                    dbc.Col([
+                        dbc.Label("Select Test:", className="fw-bold"),
+                        dcc.Dropdown(
+                            id="results-test-selector",
+                            options=[],
+                            placeholder="Choose a test...",
+                            multi=False,
+                            style={"fontSize": "14px"}
+                        )
+                    ], width=6)
+                ], className="mb-3"),
                 
                 # Results summary
                 dbc.Row([
@@ -415,10 +428,13 @@ def create_main_layout():
                         create_results_tab(),
                         create_sensitivity_tab(),
                         create_settings_tab()
-                    ], id="main-tabs", active_tab="upload-tab", 
+                    ], id="main-tabs", active_tab="upload-tab",
+                    className="mb-0 p-0",
                     style={
                         "fontSize": "18px",
-                        "fontWeight": "bold"
+                        "fontWeight": "bold",
+                        "margin": "0",
+                        "padding": "0"
                     })
                     
                 ], width=12)

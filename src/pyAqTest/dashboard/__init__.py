@@ -6,6 +6,7 @@ Dashboard components for the Batch Slug Test Analysis application.
 
 from .layout import create_main_layout
 from .callbacks import register_callbacks
+from .results_callbacks import register_results_callbacks
 from .data_storage import get_data_storage, add_data
 from .utils import read_ini_file
 from .components import (
@@ -32,5 +33,6 @@ __all__ = [
     'create_export_card',
     'create_analysis_settings_card',
     'create_display_settings_card',
-    'create_results_table'
+    'create_results_table',
+    'register_results_callbacks'
 ]

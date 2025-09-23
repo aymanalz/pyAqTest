@@ -14,9 +14,10 @@ import os
 import configparser
 from .data_storage import get_data_storage, add_data
 from .analysis_callbacks import register_analysis_callbacks
+from .results_callbacks import register_results_callbacks
 
 def create_ini_config_form(config_dict, filename, file_path=None):
-    """Create a neat form with INI config file content"""
+    """Create a compact, multi-column form with INI config file content"""
     form_elements = []
     
     # Get the actual file path from global data storage
@@ -38,10 +39,10 @@ def create_ini_config_form(config_dict, filename, file_path=None):
             ]),
             dbc.CardBody([
                 # File path info
-                html.P(f"📁 Path: {folder_path}", className="mb-2"),
+                html.P(f"📁 Path: {folder_path}", className="mb-1"),
                 html.P(f"📊 Sections: {len(config_dict)}", className="mb-0")
-            ])
-        ], className="mb-3")
+            ], className="p-2")
+        ], className="mb-2")
     )
     
     # Create form for each section
@@ -53,22 +54,29 @@ def create_ini_config_form(config_dict, filename, file_path=None):
         form_elements.append(
             dbc.Card([
                 dbc.CardHeader([
-                    html.H6(f"🔧 {section_name.replace('_', ' ').title()}", className="mb-0")
+                    html.H6(
+                        f"🔧 {section_name.replace('_', ' ').title()}",
+                        className="mb-0"
+                    )
                 ]),
                 dbc.CardBody([
                     # Create form fields for each key-value pair
                     dbc.Row([
                         dbc.Col([
-                            dbc.Label(key.replace('_', ' ').title(), className="fw-bold"),
+                            dbc.Label(
+                                key.replace('_', ' ').title(),
+                                className="fw-bold small mb-1"
+                            ),
                             dbc.Input(
                                 value=str(value),
                                 id=f"config-{section_name}-{key}",
-                                className="mb-2"
+                                className="mb-1",
+                                size="sm"
                             )
-                        ], width=6) for key, value in section_data.items()
-                    ])
-                ])
-            ], className="mb-3")
+                        ], width=4) for key, value in section_data.items()
+                    ], className="g-2")
+                ], className="p-2")
+            ], className="mb-2")
         )
     
     # Add action buttons
@@ -543,3 +551,4 @@ def register_callbacks(app):
     
     # Register analysis callbacks
     register_analysis_callbacks(app)
+    register_results_callbacks(app)
