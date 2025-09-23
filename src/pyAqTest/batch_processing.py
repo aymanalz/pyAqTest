@@ -108,8 +108,8 @@ class Batch_Processing:
                 # check if all values are na
                 if row.isna().all():
                     continue
-                if int(irow)> 3: # debug
-                    continue
+                # if int(irow)> 3: # debug
+                #     continue
                 
                 test_type = row.get("test_type")
                 aquifer_name = row.get("aquifer_name")
@@ -259,9 +259,11 @@ class Batch_Processing:
             # -----------------
             if 'Test Date' in self.df_batch.columns:
                 test_date = self.df_batch[self.df_batch["test_id"] == test_name]['Test Date'].values[0]
-
-            analysis_date = "Date of Analysis: " + str(date.today())
+            else: 
+                test_date = "N/A"
             test_date = "Date of Test: " + test_date
+            analysis_date = "Date of Analysis: " + str(date.today())
+            
             well_name = self.df_batch[self.df_batch["test_id"] == test_name]['well_name'].values[0]
             well_name = "Well Name: " + str(well_name)
             aquifer_name = "Aquifer Name: " + str(self.get_well_info(test_name, "aquifer_name")) 

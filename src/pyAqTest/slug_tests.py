@@ -10,12 +10,12 @@ import math
 from scipy.stats import linregress
 from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
-import statsmodels.api as sm
 
 from pyAqTest import Aquifer
 from pyAqTest import SlugWell
 from pyAqTest import AquiferTestBase
 from pyAqTest.utils import evaluate_regression_fit, harmonize_units, get_static_level
+from pyAqTest.fit_utils import fit_regression
 
 
 # todo: think about simplifying the code by assuming that all data is recovery data
@@ -142,19 +142,8 @@ class Bouwer_Rice_1976(AquiferTestBase):
         recovery_time = time[recovery_start:]
         return recovery_depth, recovery_time
 
-    def fit(self, x, y, method='scipy'):
-        if method == 'scipy':
-            result = linregress(x, y)
-        elif method == 'Huber':
-            huber_model = sm.RLM(y, x, M=sm.robust.norms.HuberT())
-            huber_results = huber_model.fit()
-            result = huber_results
-        elif method == 'Tukey':
-            tukey_model = sm.RLM(y, x, M=sm.robust.norms.TukeyBiweight())
-            tukey_results = tukey_model.fit()
-            result = tukey_results
-        else:
-            raise ValueError(f"Invalid method: {method}")
+    def fit(self, x, y):        
+        result = linregress(x, y)
         return result
 
     def analyze(self) -> None:
@@ -209,7 +198,16 @@ class Bouwer_Rice_1976(AquiferTestBase):
         mask = np.logical_and(h_normalized >= 0.1, h_normalized <= 0.3)
         mask2 = np.abs(h_normalized) > 10e-6
         mask = np.logical_and(mask2, mask)
-        fit_result = self.fit(x=time[mask], y=np.log(np.abs(h_normalized[mask])), robust=True)
+
+        if False:
+            fit_result = self.fit(x=time[mask], y=np.log(np.abs(h_normalized[mask])))
+        else:
+            fit_result = fit_regression(x=time[mask], y=np.log(np.abs(h_normalized[mask])))
+            if not(fit_result.success):
+                raise ValueError(f"Fit failed for test {self.name}")
+       
+       
+
 
         # plot
         fig = plt.figure()
@@ -229,13 +227,16 @@ class Bouwer_Rice_1976(AquiferTestBase):
         plt.close()
 
         # evaluate model fit
-        y_fit = fit_result.slope * time + fit_result.intercept
-        fit_states = evaluate_regression_fit(
-            y_obs=h_normalized[mask],
-            y_pred=np.exp(y_fit[mask]),
-            num_predictors=1,
-            verbose=False,
-        )
+        if False:
+            y_fit = fit_result.slope * time + fit_result.intercept
+            fit_states = evaluate_regression_fit(
+                y_obs=h_normalized[mask],
+                y_pred=np.exp(y_fit[mask]),
+                num_predictors=1,
+                verbose=False,
+            )
+        else:
+            fit_states = fit_result.stats
 
         rw_star = rw * (anis**0.5)
         x = np.log10(b / rw_star)
@@ -260,14 +261,7 @@ class Bouwer_Rice_1976(AquiferTestBase):
         self.estimated_parameters = {
             "transmissivity": k * D,
             "hydraulic_conductivity": k,
-        }
-        # self.fitting_statistics = {
-        #     "slope": fit_result.slope,
-        #     "intercept": fit_result.intercept,
-        #     "r_value": fit_result.rvalue,
-        #     "p_value": fit_result.pvalue,
-        #     "std_err": fit_result.stderr,
-        # }
+        }      
 
         self.fitting_statistics = fit_states
 
@@ -417,9 +411,19 @@ class Butler_2003(AquiferTestBase):
         h_normalized = dev_static / H0
 
         p0 = [1.99, 1.0]
-        popt, pcov = self.fit(time, h_normalized, p0=p0)
-        cd = popt[0]
-        modfac = popt[1]
+        if False:
+            popt, pcov = self.fit(time, h_normalized, p0=p0)
+            cd = popt[0]
+            modfac = popt[1]
+        else:
+            fit_result = fit_regression(time, h_normalized, method='nonlinear', 
+            model=self.model, p0=p0)
+            if not(fit_result.success):
+                raise ValueError(f"Fit failed for test {self.name}")
+            cd = fit_result.params[0]
+            modfac = fit_result.params[1]
+
+       
 
         h_ = self.model(time, cd, modfac)
 
@@ -443,9 +447,12 @@ class Butler_2003(AquiferTestBase):
         plt.close()
 
         # evaluate model fit
-        fit_states = evaluate_regression_fit(
-            y_obs=h_normalized, y_pred=h_, num_predictors=1, verbose=False
-        )
+        if False:
+            fit_states = evaluate_regression_fit(
+                y_obs=h_normalized, y_pred=h_, num_predictors=1, verbose=False
+            )
+        else:
+            fit_states = fit_result.stats
 
         # compute k
         tfac = modfac

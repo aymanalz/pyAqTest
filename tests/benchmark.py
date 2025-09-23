@@ -1,0 +1,6 @@
+import pyAqTest
+
+ini_filename = r"C:\workspace\projects\pump_tests\benchmark\benchmark.ini"
+batch = pyAqTest.Batch_Processing(config_obj=ini_filename)
+batch.run_batch()
+batch.generate_html_report()

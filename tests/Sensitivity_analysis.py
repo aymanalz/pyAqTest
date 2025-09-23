@@ -1,5 +1,5 @@
 import pandas as pd
-from pyAqTest import Aquifer, SlugWell, Butler_2003
+from pyAqTest import Aquifer, SlugWell, Butler_2003, Bouwer_Rice_1976
 
 fn = r"C:\workspace\projects\pump_tests\pyAqTest\tests\datasets\butler_method.csv"
 df = pd.read_csv(fn)
@@ -46,6 +46,7 @@ slug_well = SlugWell(
 print(slug_well)
 
 slug_test = Butler_2003(name="slug_test_1", aquifer=aq, slug_well=slug_well)
+#slug_test = Bouwer_Rice_1976(name="slug_test_1", aquifer=aq, slug_well=slug_well)
 
 slug_test.analyze()
 slug_test.print_estimated_parameters()
