@@ -63,14 +63,13 @@ def register_results_callbacks(app):
 
     @app.callback(
         dash.dependencies.Output("summary-stats", "children"),
-        [dash.dependencies.Input("run-analysis-btn", "n_clicks"),
+        [dash.dependencies.Input("run-batch-btn", "n_clicks"),
          dash.dependencies.Input('results-test-selector', 'value')],
-        [dash.dependencies.State("test-selector-dropdown", "value")],
         prevent_initial_call=True,
     )
-    def update_summary_stats(n_clicks, selected_result_test, selected_tests):
+    def update_summary_stats(n_clicks_batch, selected_result_test):
         """Update the summary stats when analysis runs."""
-        if not n_clicks:
+        if not n_clicks_batch:
             return ""
 
         data_storage = get_data_storage()
@@ -85,36 +84,35 @@ def register_results_callbacks(app):
 
         num_rows = len(df)
         num_cols = len(df.columns)
-        tests = selected_tests or []
         chosen = selected_result_test if selected_result_test else "None"
 
         return html.Ul(
             [
                 html.Li(f"Rows: {num_rows}"),
                 html.Li(f"Columns: {num_cols}"),
-                html.Li(f"Selected tests: {len(tests)}"),
                 html.Li(f"Results selection: {chosen}"),
             ]
         )
+    
+ 
 
-    @app.callback(
-        dash.dependencies.Output("results-table", "children"),
-        [dash.dependencies.Input("run-analysis-btn", "n_clicks"),
-         dash.dependencies.Input('results-test-selector', 'value')],
-        [dash.dependencies.State("test-selector-dropdown", "value")],
-        prevent_initial_call=True,
-    )
-    def update_results_table(n_clicks, selected_result_test, selected_tests):
-        """Update the results table when analysis runs."""
-        data_storag = get_data_storage()
-        output_folder = data_storag['parsed_config']['Output Info']['output_folder']
-        estimatedKFn = os.path.join(output_folder, 'estimated_conductivity.csv')
-        result_df = pd.read_csv(estimatedKFn)
-        if not n_clicks:
-            return ""
+    # @app.callback(
+    #     dash.dependencies.Output("results-table", "children"),
+    #     [dash.dependencies.Input("run-batch-btn", "n_clicks"),
+    #      dash.dependencies.Input('results-test-selector', 'value')],
+    #     prevent_initial_call=True,
+    # )
+    # def update_results_table(n_clicks_batch, selected_result_test):
+    #     """Update the results table when analysis runs."""
+    #     data_storag = get_data_storage()
+    #     output_folder = data_storag['parsed_config']['Output Info']['output_folder']
+    #     estimatedKFn = os.path.join(output_folder, 'estimated_conductivity.csv')
+    #     result_df = pd.read_csv(estimatedKFn)
+    #     if not n_clicks_batch:
+    #         return ""
 
-        # Placeholder table for now. Replace with actual results dataframe
-        # when available in the shared data store.
-        return create_results_table()
+    #     # Placeholder table for now. Replace with actual results dataframe
+    #     # when available in the shared data store.
+    #     return create_results_table()
 
 

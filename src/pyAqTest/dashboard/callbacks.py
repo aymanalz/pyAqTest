@@ -11,6 +11,7 @@ import plotly.graph_objects as go
 import base64
 import pandas as pd
 import os
+import tempfile
 import configparser
 from .data_storage import get_data_storage, add_data
 from .analysis_callbacks import register_analysis_callbacks
@@ -334,6 +335,25 @@ def register_callbacks(app):
             ]
         return dash.no_update
     
+    def save_file(name, contents):
+        """
+        Decodes and saves a file uploaded with dcc.Upload.
+        Returns the full absolute path of the saved file on the server.
+        """
+
+        UPLOAD_DIRECTORY = tempfile.gettempdir()
+        data = contents.encode("utf8").split(b";base64,")[1]
+        
+        # Use os.path.join to create a full server-side path
+        server_path = os.path.join(UPLOAD_DIRECTORY, name)
+        add_data('server_run_path', server_path)
+        with open(server_path, "wb") as fp:
+            fp.write(base64.decodebytes(data))
+        
+        # Return the absolute path for use in your process
+        abs_path = os.path.abspath(server_path)
+        add_data('file_path', abs_path)
+        return abs_path
 
     # Callback for file input to handle .ini file selection
     @app.callback(
@@ -346,14 +366,10 @@ def register_callbacks(app):
         """Handle .ini file upload"""
         if contents is not None:
             # File was selected - capture full file path
-            
-            full_path = os.path.abspath(filename) if filename else "Unknown path"
+            full_path = save_file(filename, contents)          
             
             # Use global data storage
             data_storage = get_data_storage()
-            add_data('file_path', full_path)
-            add_data('file_name', filename)
-           
             try:
                 decoded = base64.b64decode(contents.split(',')[1]).decode('utf-8')
                 config = configparser.ConfigParser()
