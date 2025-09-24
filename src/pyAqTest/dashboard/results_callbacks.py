@@ -76,6 +76,7 @@ def register_results_callbacks(app):
         # Build expected image paths
         fitplot_fn = os.path.join(output_folder, 'fit_plots', f"{selected_test_id}.png")
         recovery_fn = None
+        test_info = None
         try:
             batch_obj = data_storage.get('batch_obj')
             if batch_obj is not None and hasattr(batch_obj, 'df_batch'):
@@ -84,6 +85,15 @@ def register_results_callbacks(app):
                 test_file = os.path.basename(test_file)
                 test_file = os.path.splitext(test_file)[0] + ".png"
                 recovery_fn = os.path.join(output_folder, 'recovery_splits', test_file)
+                test_info = df_batch[df_batch["test_id"] == selected_test_id]
+                test_results = batch_obj.df_results[batch_obj.df_results["test_name"] == selected_test_id]
+                K_est = test_results["hydraulic_conductivity"].values[0] * 24 * 60 * 60
+                K_est = round(K_est, 2)
+
+                T_est = test_results["transmissivity"].values[0] * 24 * 60 * 60
+                T_est = round(T_est, 2)
+                
+               
         except Exception:
             recovery_fn = None
 
@@ -118,7 +128,79 @@ def register_results_callbacks(app):
             pass
 
         if elems:
-            return dbc.Row(elems)
+            components = []
+            info_card = None
+            metrics_card = None
+            # Build test info card if available
+            try:
+                if isinstance(test_info, pd.DataFrame) and not test_info.empty:
+                    df_disp = test_info.transpose().reset_index()
+                    df_disp.columns = ["Parameter", "Value"]
+                    df_disp["Parameter"] = (
+                        df_disp["Parameter"].str.replace("_", " ").str.title()
+                    )
+                    table_header = html.Thead(
+                        html.Tr([html.Th("Parameter"), html.Th("Value")])
+                    )
+                    table_rows = [
+                        html.Tr([
+                            html.Td(str(row["Parameter"])),
+                            html.Td(str(row["Value"]))
+                        ])
+                        for _, row in df_disp.iterrows()
+                    ]
+                    table_body = html.Tbody(table_rows)
+                    info_table = dbc.Table(
+                        [table_header, table_body],
+                        striped=True,
+                        bordered=True,
+                        hover=True,
+                        size="sm",
+                    )
+                    info_card = dbc.Card([
+                        dbc.CardHeader([
+                            html.H6(
+                                f"Test Info: {selected_test_id}",
+                                className="mb-0"
+                            )
+                        ]),
+                        dbc.CardBody([info_table])
+                    ])
+            except Exception:
+                info_card = None
+
+            # Build metrics card (green) for K and T
+            try:
+                k_val = f"{K_est}" if 'K_est' in locals() else "N/A"
+                t_val = f"{T_est}" if 'T_est' in locals() else "N/A"
+                metrics_card = dbc.Card([
+                    dbc.CardHeader([
+                        html.H6(
+                            "Estimated Hydraulic Conductivity",
+                            className="mb-0"
+                        )
+                    ]),
+                    dbc.CardBody([
+                        html.Ul([
+                            html.Li(f"Hydraulic Conductivity (K): {k_val} ft/day"),
+                            html.Li(f"Transmissivity (T): {t_val} ft^2/day"),
+                        ], className="mb-0")
+                    ])
+                ], className="bg-success text-white")
+            except Exception:
+                metrics_card = None
+
+            # Compose the header row
+            header_cols = []
+            if info_card is not None:
+                header_cols.append(dbc.Col(info_card, width=8))
+            if metrics_card is not None:
+                header_cols.append(dbc.Col(metrics_card, width=4))
+            if header_cols:
+                components.append(dbc.Row(header_cols, className="mb-3"))
+
+            components.append(dbc.Row(elems))
+            return html.Div(components)
 
         # Not ready yet; show lightweight progress note
         return dbc.Alert(
