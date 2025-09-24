@@ -92,6 +92,15 @@ def register_results_callbacks(app):
 
                 T_est = test_results["transmissivity"].values[0] * 24 * 60 * 60
                 T_est = round(T_est, 2)
+
+                # get all columns in test_results except test_name, hydraulic_conductivity, transmissivity. and create a table below the estimated parameters card
+                cols = [col for col in test_results.columns if col not in ["test_name", "hydraulic_conductivity", "transmissivity"]]
+                df_fit = test_results[cols]
+                df_fit = df_fit.transpose()
+                df_fit.reset_index(inplace=True)
+                df_fit.columns = ["Parameter", "Value"]
+                df_fit["Parameter"] = df_fit["Parameter"].str.replace("_", " ").str.title()
+                table3 = ("table", df_fit, "Fitting Results")
                 
                
         except Exception:
@@ -131,6 +140,7 @@ def register_results_callbacks(app):
             components = []
             info_card = None
             metrics_card = None
+            fit_card = None
             # Build test info card if available
             try:
                 if isinstance(test_info, pd.DataFrame) and not test_info.empty:
@@ -190,12 +200,37 @@ def register_results_callbacks(app):
             except Exception:
                 metrics_card = None
 
+            # Build fitting results card (below metrics card)
+            try:
+                if 'df_fit' in locals() and isinstance(df_fit, pd.DataFrame) and not df_fit.empty:
+                    fit_header = html.Thead(html.Tr([html.Th("Parameter"), html.Th("Value")]))
+                    fit_rows = [
+                        html.Tr([
+                            html.Td(str(row["Parameter"])),
+                            html.Td(str(row["Value"]))
+                        ])
+                        for _, row in df_fit.iterrows()
+                    ]
+                    fit_body = html.Tbody(fit_rows)
+                    fit_table = dbc.Table([fit_header, fit_body], striped=True, bordered=True, hover=True, size="sm")
+                    fit_card = dbc.Card([
+                        dbc.CardHeader([html.H6("Fitting Results", className="mb-0")]),
+                        dbc.CardBody([fit_table])
+                    ], className="mt-3")
+            except Exception:
+                fit_card = None
+
             # Compose the header row
             header_cols = []
-            if info_card is not None:
-                header_cols.append(dbc.Col(info_card, width=8))
+            left_children = []
             if metrics_card is not None:
-                header_cols.append(dbc.Col(metrics_card, width=4))
+                left_children.append(metrics_card)
+            if fit_card is not None:
+                left_children.append(fit_card)
+            if left_children:
+                header_cols.append(dbc.Col(left_children, width=6))
+            if info_card is not None:
+                header_cols.append(dbc.Col(info_card, width=6))
             if header_cols:
                 components.append(dbc.Row(header_cols, className="mb-3"))
 
