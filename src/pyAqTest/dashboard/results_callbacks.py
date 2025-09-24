@@ -113,25 +113,35 @@ def register_results_callbacks(app):
                 with open(recovery_fn, "rb") as f:
                     rec_b64 = base64.b64encode(f.read()).decode("ascii")
                 elems.append(
-                    dbc.Col([
-                        html.H6("Recovery Data Splits", className="mb-2"),
-                        html.Img(
-                            src=f"data:image/png;base64,{rec_b64}",
-                            style={"maxWidth": "100%", "height": "auto"}
-                        ),
-                    ], width=6)
+                    dbc.Col(
+                        dbc.Card([
+                            dbc.CardHeader([html.H6("Recovery Data Splits", className="mb-0")]),
+                            dbc.CardBody([
+                                html.Img(
+                                    src=f"data:image/png;base64,{rec_b64}",
+                                    style={"maxWidth": "100%", "height": "auto"}
+                                )
+                            ])
+                        ], className="mb-3"),
+                        width=6
+                    )
                 )
             if os.path.exists(fitplot_fn):
                 with open(fitplot_fn, "rb") as f:
                     fit_b64 = base64.b64encode(f.read()).decode("ascii")
                 elems.append(
-                    dbc.Col([
-                        html.H6("Fitted Model Plot", className="mb-2"),
-                        html.Img(
-                            src=f"data:image/png;base64,{fit_b64}",
-                            style={"maxWidth": "100%", "height": "auto"}
-                        ),
-                    ], width=6)
+                    dbc.Col(
+                        dbc.Card([
+                            dbc.CardHeader([html.H6("Fitted Model Plot", className="mb-0")]),
+                            dbc.CardBody([
+                                html.Img(
+                                    src=f"data:image/png;base64,{fit_b64}",
+                                    style={"maxWidth": "100%", "height": "auto"}
+                                )
+                            ])
+                        ], className="mb-3"),
+                        width=6
+                    )
                 )
         except Exception:
             pass
