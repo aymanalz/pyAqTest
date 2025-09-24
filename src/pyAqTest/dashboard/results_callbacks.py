@@ -100,6 +100,14 @@ def register_results_callbacks(app):
                 df_fit.reset_index(inplace=True)
                 df_fit.columns = ["Parameter", "Value"]
                 df_fit["Parameter"] = df_fit["Parameter"].str.replace("_", " ").str.title()
+                # Round numeric values to 4 significant digits for display
+                def _fmt4(v):
+                    try:
+                        fv = float(v)
+                        return f"{fv:.4g}"
+                    except Exception:
+                        return v
+                df_fit["Value"] = df_fit["Value"].apply(_fmt4)
                 table3 = ("table", df_fit, "Fitting Results")
                 
                
@@ -115,7 +123,10 @@ def register_results_callbacks(app):
                 elems.append(
                     dbc.Col(
                         dbc.Card([
-                            dbc.CardHeader([html.H6("Recovery Data Splits", className="mb-0")]),
+                            dbc.CardHeader(
+                                [html.H6("Recovery Data Splits", className="mb-0")],
+                                style={"backgroundColor": "#fde2e4", "color": "#7a1f2a"}
+                            ),
                             dbc.CardBody([
                                 html.Img(
                                     src=f"data:image/png;base64,{rec_b64}",
@@ -132,7 +143,10 @@ def register_results_callbacks(app):
                 elems.append(
                     dbc.Col(
                         dbc.Card([
-                            dbc.CardHeader([html.H6("Fitted Model Plot", className="mb-0")]),
+                            dbc.CardHeader(
+                                [html.H6("Fitted Model Plot", className="mb-0")],
+                                style={"backgroundColor": "#fff3cd", "color": "#664d03"}
+                            ),
                             dbc.CardBody([
                                 html.Img(
                                     src=f"data:image/png;base64,{fit_b64}",
@@ -183,8 +197,13 @@ def register_results_callbacks(app):
                                 f"Test Info: {selected_test_id}",
                                 className="mb-0"
                             )
-                        ]),
-                        dbc.CardBody([info_table])
+                        ], style={"backgroundColor": "#cfe2ff", "color": "#084298"}),
+                        dbc.CardBody([
+                            html.Div(
+                                info_table,
+                                style={"maxHeight": "320px", "overflowY": "auto"}
+                            )
+                        ])
                     ])
             except Exception:
                 info_card = None
@@ -199,14 +218,24 @@ def register_results_callbacks(app):
                             "Estimated Hydraulic Conductivity",
                             className="mb-0"
                         )
-                    ]),
+                    ], style={"backgroundColor": "#d1e7dd", "color": "#0f5132"}),
                     dbc.CardBody([
                         html.Ul([
-                            html.Li(f"Hydraulic Conductivity (K): {k_val} ft/day"),
-                            html.Li(f"Transmissivity (T): {t_val} ft^2/day"),
+                            html.Li([
+                                "Hydraulic Conductivity (K):",
+                                html.Span("\u00A0" * 10),
+                                html.Strong(f"{k_val}"),
+                                " ft/day",
+                            ]),
+                            html.Li([
+                                "Transmissivity (T):",
+                                html.Span("\u00A0" * 10),
+                                html.Strong(f"{t_val}"),
+                                " ft^2/day",
+                            ]),
                         ], className="mb-0")
                     ])
-                ], className="bg-success text-white")
+                ], style={"backgroundColor": "#e9f7ef", "color": "#0f5132"})
             except Exception:
                 metrics_card = None
 
@@ -224,7 +253,10 @@ def register_results_callbacks(app):
                     fit_body = html.Tbody(fit_rows)
                     fit_table = dbc.Table([fit_header, fit_body], striped=True, bordered=True, hover=True, size="sm")
                     fit_card = dbc.Card([
-                        dbc.CardHeader([html.H6("Fitting Results", className="mb-0")]),
+                        dbc.CardHeader(
+                            [html.H6("Fitting Results", className="mb-0")],
+                            style={"backgroundColor": "#cff4fc", "color": "#055160"}
+                        ),
                         dbc.CardBody([fit_table])
                     ], className="mt-3")
             except Exception:
