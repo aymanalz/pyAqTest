@@ -4,6 +4,15 @@ Main Dash Application for Batch Slug Test Analysis
 Clean, consolidated version of the Dash app for slug test analysis.
 """
 
+import os
+# Use a non-GUI Matplotlib backend to avoid Tkinter thread errors
+os.environ.setdefault("MPLBACKEND", "Agg")
+try:
+    import matplotlib
+    matplotlib.use("Agg")
+except Exception:
+    pass
+
 import dash
 import dash_bootstrap_components as dbc
 

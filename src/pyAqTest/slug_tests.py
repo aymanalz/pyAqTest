@@ -204,66 +204,69 @@ class Bouwer_Rice_1976(AquiferTestBase):
         else:
             fit_result = fit_regression(x=time[mask], y=np.log(np.abs(h_normalized[mask])))
             if not(fit_result.success):
-                raise ValueError(f"Fit failed for test {self.name}")
-       
+                print(f"Fit failed for test {self.name}")
+                #
+                       
        
 
 
         # plot
-        fig = plt.figure()
-        x = time[mask2]
-        y = h_normalized[mask2]
-        y_fit = fit_result.slope * x + fit_result.intercept
-        plt.scatter(x, y, label="Data")
-        plt.plot(x, np.exp(y_fit), color="red", label="Fitted Line")
-        plt.xlabel("Time")
-        plt.ylabel(r"$\frac{H}{H_0}$")
-        plt.yscale("log")
-        plt.grid()
-        plt.legend()
-        plt.title(f"Linear Fit for test {self.name}")
-        plt.ylim(1e-6, 1.2)
-        self.viz_fig = fig
-        plt.close()
+        if fit_result.success:
+            fig = plt.figure()
+            x = time[mask2]
+            y = h_normalized[mask2]
+            y_fit = fit_result.slope * x + fit_result.intercept
+            plt.scatter(x, y, label="Data")
+            plt.plot(x, np.exp(y_fit), color="red", label="Fitted Line")
+            plt.xlabel("Time")
+            plt.ylabel(r"$\frac{H}{H_0}$")
+            plt.yscale("log")
+            plt.grid()
+            plt.legend()
+            plt.title(f"Linear Fit for test {self.name}")
+            plt.ylim(1e-6, 1.2)
+            self.viz_fig = fig
+            plt.close()
 
-        # evaluate model fit
-        if False:
-            y_fit = fit_result.slope * time + fit_result.intercept
-            fit_states = evaluate_regression_fit(
-                y_obs=h_normalized[mask],
-                y_pred=np.exp(y_fit[mask]),
-                num_predictors=1,
-                verbose=False,
-            )
-        else:
-            fit_states = fit_result.stats
+            # evaluate model fit
+            if False:
+                y_fit = fit_result.slope * time + fit_result.intercept
+                fit_states = evaluate_regression_fit(
+                    y_obs=h_normalized[mask],
+                    y_pred=np.exp(y_fit[mask]),
+                    num_predictors=1,
+                    verbose=False,
+                )
+            else:
+                fit_states = fit_result.stats
 
-        rw_star = rw * (anis**0.5)
-        x = np.log10(b / rw_star)
+            rw_star = rw * (anis**0.5)
+            x = np.log10(b / rw_star)
 
-        xs = np.array([1, x, x**2.0, x**3.0, x**4.0])
-        betaA = np.array([1.353, 2.157, -4.0270, 2.777, -0.460])
-        betaB = np.array([-0.401, 2.619, -3.2670, 1.548, -0.210])
-        betaC = np.array([-1.605, 9.496, -12.317, 6.528, -0.986])
-        A = np.dot(xs, betaA)
-        B = np.dot(xs, betaB)
-        C = np.dot(xs, betaC)
+            xs = np.array([1, x, x**2.0, x**3.0, x**4.0])
+            betaA = np.array([1.353, 2.157, -4.0270, 2.777, -0.460])
+            betaB = np.array([-0.401, 2.619, -3.2670, 1.548, -0.210])
+            betaC = np.array([-1.605, 9.496, -12.317, 6.528, -0.986])
+            A = np.dot(xs, betaA)
+            B = np.dot(xs, betaB)
+            C = np.dot(xs, betaC)
 
-        part1 = 1.1 / (np.log((d + b) / rw_star))
-        term6 = np.log(np.abs(D - (d + b)) / rw_star) # todo: handle negative values
-        if term6 > 6.0:
-            term6 = 6.0
-        part2 = (A + B * term6) / (b / rw_star)
-        lnRw_rw = np.power((part1 + part2), -1.0)
-        T0 = -1.0 / fit_result.slope
-        k = (rc**2.0) * lnRw_rw / (2 * b * T0)
+            part1 = 1.1 / (np.log((d + b) / rw_star))
+            term6 = np.log(np.abs(D - (d + b)) / rw_star) # todo: handle negative values
+            if term6 > 6.0:
+                term6 = 6.0
+            part2 = (A + B * term6) / (b / rw_star)
+            lnRw_rw = np.power((part1 + part2), -1.0)
+            T0 = -1.0 / fit_result.slope
+            k = (rc**2.0) * lnRw_rw / (2 * b * T0)
 
-        self.estimated_parameters = {
-            "transmissivity": k * D,
-            "hydraulic_conductivity": k,
-        }      
+            self.estimated_parameters = {
+                "transmissivity": k * D,
+                "hydraulic_conductivity": k,
+            }      
 
-        self.fitting_statistics = fit_states
+            self.fitting_statistics = fit_states
+            
 
     # wrie a function that print estimated parameters and fitting statistics in pretty format
     def print_estimated_parameters(self):

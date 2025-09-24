@@ -100,6 +100,7 @@ class Batch_Processing:
         procced_data_folder = os.path.join(self.output_folder, "processed_data")
         os.makedirs(procced_data_folder)
         df_results = []
+        failed_tests = []
         with tqdm(total=len(self.df_batch), desc="Processing tests") as pbar:
             for irow, row in self.df_batch.iterrows():  
                 test_id = row.get("test_id")
@@ -108,8 +109,9 @@ class Batch_Processing:
                 # check if all values are na
                 if row.isna().all():
                     continue
-                # if int(irow)> 3: # debug
-                #     continue
+                if int(irow)> 3: # debug
+                    pbar.update(1)
+                    continue
                 
                 test_type = row.get("test_type")
                 aquifer_name = row.get("aquifer_name")
@@ -187,21 +189,25 @@ class Batch_Processing:
                 elif test_method == "Butler":
                     slug_test = Butler_2003(name=test_id, aquifer=aq, slug_well=slug_well)
 
-                slug_test.analyze()
-                plots_dir = os.path.join(self.output_folder, "fit_plots")
-                if not (os.path.isdir(plots_dir)):
-                    os.makedirs(plots_dir)
-                fig_file = os.path.join(plots_dir, test_id + ".png")
-                slug_test.viz_fig.savefig(fig_file, format="png")
+                try:
+                    slug_test.analyze()
+                    plots_dir = os.path.join(self.output_folder, "fit_plots")
+                    if not (os.path.isdir(plots_dir)):
+                        os.makedirs(plots_dir)
+                    fig_file = os.path.join(plots_dir, test_id + ".png")
+                    slug_test.viz_fig.savefig(fig_file, format="png")
 
-                df_res = pd.concat(
-                    [
-                        pd.Series(slug_test.fitting_statistics),
-                        pd.Series(slug_test.estimated_parameters),
-                    ]
-                )
-                df_res["test_name"] = slug_test.name
-                df_results.append(df_res)          
+                    df_res = pd.concat(
+                        [
+                            pd.Series(slug_test.fitting_statistics),
+                            pd.Series(slug_test.estimated_parameters),
+                        ]
+                    )
+                    df_res["test_name"] = slug_test.name
+                    df_results.append(df_res)
+                except:
+                    print(f"Fit failed for test {test_id}")
+                    failed_tests.append(test_id)          
                 pbar.update(1)
 
 
@@ -211,6 +217,8 @@ class Batch_Processing:
             ["test_name"] + [col for col in df_results.columns if col != "test_name"]
         ]
         self.df_results = df_results
+        self.failed_tests = failed_tests
+        self.df_results.to_csv(os.path.join(self.output_folder, "estimated_conductivity.csv"))
     
     def get_well_info(self, test_name, attr = None):
         
@@ -248,8 +256,7 @@ class Batch_Processing:
 
     def generate_html_report(self):
 
-        test_names = self.df_batch["test_id"].unique()
-        self.df_results.to_csv(os.path.join(self.output_folder, "estimated_conductivity.csv"))
+        test_names = self.df_batch["test_id"].unique()        
         for test_name in test_names:
             if not (test_name in self.df_results["test_name"].values):                
                 continue

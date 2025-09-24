@@ -141,13 +141,25 @@ def create_upload_tab():
 def create_analysis_tab():
     """Create the analysis tab content"""
     return dbc.Tab(
-        label="📊 Analysis",
+        label="📊 Analysis Run",
         tab_id="analysis-tab",
         children=[
             html.Div([
+                dcc.Interval(
+                    id="batch-progress-interval",
+                    interval=1000,
+                    n_intervals=0,
+                    disabled=True
+                ),
                 html.H2("Slug Test Analysis", className="mb-4"),
                 html.P("Select tests and run analysis on your slug test data", className="text-muted mb-4"),
                 
+                # Global progress container (kept in layout to satisfy callbacks)
+                html.Div([
+                    dbc.Progress(id='batch-progress-bar', value=0, striped=True, animated=True, color="primary", className="mb-2"),
+                    html.Small(id='batch-progress-text', children="", className="text-muted")
+                ], id='batch-progress-container', style={"display": "none"}),
+
                 # Test Selection Card (dynamically created)
                 html.Div(id="test-selection-card"),
                 
