@@ -14,6 +14,7 @@ from tqdm import tqdm
 from pyAqTest import readers
 
 
+
 def extract_wet_period(df, window_size=20, debug={"flg": False}):
 
     valid = False
@@ -30,34 +31,41 @@ def extract_wet_period(df, window_size=20, debug={"flg": False}):
     if not valid:
         return None
 
-    max_change = []
-    max_i = []
-    signed_max_diff = []
+    # max_change = []
+    # max_i = []
+    # signed_max_diff = []
 
-    for i in range(window_size, len(head) - window_size):
-        window_before = head[i - window_size : i]
-        window_after = head[i : i + window_size]
-        mean_before = np.mean(window_before)
-        mean_after = np.mean(window_after)
-        diff = abs(mean_after - mean_before)
+    # for i in range(window_size, len(head) - window_size):
+    #     window_before = head[i - window_size : i]
+    #     window_after = head[i : i + window_size]
+    #     mean_before = np.mean(window_before)
+    #     mean_after = np.mean(window_after)
+    #     diff = abs(mean_after - mean_before)
 
-        max_change.append(diff)
-        max_i.append(i)
-        signed_max_diff.append(mean_after - mean_before)
-    df_info = pd.DataFrame(columns=["max_change", "max_i", "signed_max_diff"])
-    df_info["max_change"] = max_change
-    df_info["max_i"] = max_i
-    df_info["signed_max_diff"] = signed_max_diff
+    #     max_change.append(diff)
+    #     max_i.append(i)
+    #     signed_max_diff.append(mean_after - mean_before)
+    # df_info = pd.DataFrame(columns=["max_change", "max_i", "signed_max_diff"])
+    # df_info["max_change"] = max_change
+    # df_info["max_i"] = max_i
+    # df_info["signed_max_diff"] = signed_max_diff
 
-    mask = df_info["signed_max_diff"] < 0
-    dry_periods = df_info[mask].copy()
-    dry_periods.sort_values(by=["max_change"], ascending=False, inplace=True)
-    i_min = dry_periods["max_i"].values[0]
-    j = np.argmin(head[i_min - window_size : i_min + window_size])
-    static_level = np.mean(head[j - window_size : j - 1])
-    recovery_start = i_min + j
+    # mask = df_info["signed_max_diff"] < 0
+    # dry_periods = df_info[mask].copy()
+    # dry_periods.sort_values(by=["max_change"], ascending=False, inplace=True)
+    # i_min = dry_periods["max_i"].values[0]
+    # j = np.argmin(head[i_min - window_size : i_min + window_size])
+    # static_level = np.mean(head[j - window_size : j - 1])
+    # recovery_start = i_min + j
+    #simplified approach
+    i_min = np.argmin(head)
+    recovery_start = i_min
     recovery_head = head[recovery_start:]
     recovery_time = time[recovery_start:]
+    
+    diff = np.diff(head)
+    idx = np.where(np.abs(diff) < 0.2)[0]
+    static_level = np.mean(head[idx])
 
     # debug
     if debug["flg"]:
@@ -72,7 +80,7 @@ def extract_wet_period(df, window_size=20, debug={"flg": False}):
         plt.xlabel("Time")
         plt.ylabel("Head")
         plt.plot(time, head)
-        plt.plot(time[recovery_start:], recovery_head)
+        plt.plot(recovery_time, recovery_head)
         plt.legend(["All test data", "Recovery Period"])
 
         plt.savefig(
@@ -325,6 +333,80 @@ def get_static_level(head, percentile=10):
 
     # Estimate static level (mean of stable values)
     return np.mean(stable_heads)
+
+
+def average_flat_head(head, window: int = 11, k: float = 1.5, min_length: int = 20):
+    """
+    Find the longest nearly-flat segment in a head vector and return its average value.
+
+    Parameters:
+    - head: 1D array-like of head values (uniformly sampled)
+    - window: rolling window size over |diff(head)| used to smooth local changes
+    - k: multiplier for the robust noise estimate (lower => stricter flatness)
+    - min_length: minimum contiguous length required to accept a flat segment
+
+    Returns:
+    - (avg_value, start_idx, end_idx)
+      avg_value: float (np.nan if no suitable flat segment is found)
+      start_idx: int | None (index into the original array)
+      end_idx: int | None (index into the original array, inclusive)
+    """
+    head_array = np.asarray(head, dtype=float)
+    valid_mask = np.isfinite(head_array)
+    valid_idx = np.where(valid_mask)[0]
+    h = head_array[valid_mask]
+
+    if h.size < max(min_length, 3):
+        return np.nan, None, None
+
+    diff = np.diff(h)
+    if diff.size == 0:
+        return np.nan, None, None
+
+    # Robust noise estimate using MAD (scaled to approximate std for normal data)
+    mad = np.median(np.abs(diff - np.median(diff)))
+    noise = 1.4826 * mad + 1e-12
+
+    # Rolling mean of |diff| via convolution to smooth transient wiggles
+    w = max(3, int(window))
+    kernel = np.ones(w, dtype=float) / w
+    ma_abs_diff = np.convolve(np.abs(diff), kernel, mode="same")
+
+    # Positions where local change is small relative to noise are considered flat
+    flat_diff_mask = ma_abs_diff < (k * noise)
+
+    # Map diff-level mask (length n-1) to head-level mask (length n)
+    flat_head_mask = np.zeros_like(h, dtype=bool)
+    flat_head_mask[1:] |= flat_diff_mask
+    flat_head_mask[:-1] |= flat_diff_mask
+
+    if not flat_head_mask.any():
+        return np.nan, None, None
+
+    # Find contiguous flat runs
+    edges = np.diff(np.concatenate(([0], flat_head_mask.view(np.int8), [0])))
+    starts = np.where(edges == 1)[0]
+    ends = np.where(edges == -1)[0]
+    lengths = ends - starts
+    if lengths.size == 0:
+        return np.nan, None, None
+
+    # Enforce minimum length and select the longest qualifying run
+    ok = lengths >= min_length
+    if not np.any(ok):
+        return np.nan, None, None
+
+    best = np.argmax(lengths[ok])
+    s = starts[ok][best]
+    e = ends[ok][best]  # exclusive end
+
+    avg_value = float(np.mean(h[s:e]))
+
+    # Map back to original indices (end index reported as inclusive)
+    start_idx = int(valid_idx[s])
+    end_idx = int(valid_idx[e - 1])
+
+    return avg_value
 
 
 if __name__ == "__main__":

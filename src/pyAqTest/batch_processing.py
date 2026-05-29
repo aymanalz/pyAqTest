@@ -32,6 +32,9 @@ The standard format is csv file that should include the following columns:
 
 """
 
+# ``fit_plots/*.png`` are embedded in PDFs; use print-friendly resolution.
+FIT_PLOT_PNG_DPI = 300
+
 
 class Batch_Processing:
     def __init__(self, config_obj=None):
@@ -109,9 +112,9 @@ class Batch_Processing:
                 # check if all values are na
                 if row.isna().all():
                     continue
-                if int(irow)> 3: # debug
-                    pbar.update(1)
-                    continue
+                # if int(irow)> 4: # debug
+                #     pbar.update(1)
+                #     continue
                 
                 test_type = row.get("test_type")
                 aquifer_name = row.get("aquifer_name")
@@ -195,7 +198,9 @@ class Batch_Processing:
                     if not (os.path.isdir(plots_dir)):
                         os.makedirs(plots_dir)
                     fig_file = os.path.join(plots_dir, test_id + ".png")
-                    slug_test.viz_fig.savefig(fig_file, format="png")
+                    slug_test.viz_fig.savefig(
+                        fig_file, format="png", dpi=FIT_PLOT_PNG_DPI
+                    )
 
                     df_res = pd.concat(
                         [
@@ -285,7 +290,7 @@ class Batch_Processing:
                  kvalue = kvalue * 24
            
             rounded_kvalue = round(kvalue, 2)
-            estimated_k = "Estimated K: " + str(rounded_kvalue) + " " + str(self.length_unit) + "/" + str(self.time_unit)
+            estimated_k = "Estimated K: " + str(rounded_kvalue) + " " + "ft/day" 
             estimated_s = "Estimated S: " + str(self.get_results(test_name, "S_estimated"))
             raw_list = [analysis_date, test_date, well_name, 
                         aquifer_name, aquifer_type,
@@ -470,7 +475,7 @@ def run_batch(
         if not (os.path.isdir(plots_dir)):
             os.makedirs(plots_dir)
         fig_file = os.path.join(plots_dir, test_id + ".png")
-        slug_test.viz_fig.savefig(fig_file, format="png")
+        slug_test.viz_fig.savefig(fig_file, format="png", dpi=FIT_PLOT_PNG_DPI)
 
         df_res = pd.concat(
             [

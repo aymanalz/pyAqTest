@@ -24,7 +24,7 @@ col_names_mapping = {
     "well_radius": "Casing Radius (ft)",
     "casing_radius": "Casing Radius (ft)",
     "screen_length": "screen_length",
-    "screen_top_depth": "Bottom of Perf",
+    "screen_top_depth": "Bottom of Perf", # WRONG!!! Todo: 4/4/2026
     "test_data_file": "find it",
     "slug_volume": "Slug Volume",    
     "ground_surface_elevation": "RPE",
