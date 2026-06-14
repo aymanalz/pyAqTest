@@ -13,6 +13,8 @@ from tqdm import tqdm
 
 from pyAqTest import readers
 
+# DPI for saved PNG/PDF figures (fit plots, recovery splits, reports).
+FIG_SAVE_DPI = 300
 
 
 def extract_wet_period(df, window_size=20, debug={"flg": False}):
@@ -30,42 +32,16 @@ def extract_wet_period(df, window_size=20, debug={"flg": False}):
             break
     if not valid:
         return None
-
-    # max_change = []
-    # max_i = []
-    # signed_max_diff = []
-
-    # for i in range(window_size, len(head) - window_size):
-    #     window_before = head[i - window_size : i]
-    #     window_after = head[i : i + window_size]
-    #     mean_before = np.mean(window_before)
-    #     mean_after = np.mean(window_after)
-    #     diff = abs(mean_after - mean_before)
-
-    #     max_change.append(diff)
-    #     max_i.append(i)
-    #     signed_max_diff.append(mean_after - mean_before)
-    # df_info = pd.DataFrame(columns=["max_change", "max_i", "signed_max_diff"])
-    # df_info["max_change"] = max_change
-    # df_info["max_i"] = max_i
-    # df_info["signed_max_diff"] = signed_max_diff
-
-    # mask = df_info["signed_max_diff"] < 0
-    # dry_periods = df_info[mask].copy()
-    # dry_periods.sort_values(by=["max_change"], ascending=False, inplace=True)
-    # i_min = dry_periods["max_i"].values[0]
-    # j = np.argmin(head[i_min - window_size : i_min + window_size])
-    # static_level = np.mean(head[j - window_size : j - 1])
-    # recovery_start = i_min + j
-    #simplified approach
+   
     i_min = np.argmin(head)
     recovery_start = i_min
     recovery_head = head[recovery_start:]
     recovery_time = time[recovery_start:]
     
-    diff = np.diff(head)
-    idx = np.where(np.abs(diff) < 0.2)[0]
-    static_level = np.mean(head[idx])
+    # diff = np.diff(head)
+    # idx = np.where(np.abs(diff) < 0.2)[0]
+    # static_level = np.mean(head[idx])
+    static_level = get_static_level(head)
 
     # debug
     if debug["flg"]:
@@ -75,19 +51,38 @@ def extract_wet_period(df, window_size=20, debug={"flg": False}):
         if not os.path.exists(plot_folder):
             os.makedirs(plot_folder)
 
+        static_label = f"Static level ({static_level:.3f} ft)"
         plt.figure()
         plt.title("Dry/Wet Periods")
         plt.xlabel("Time")
         plt.ylabel("Head")
-        plt.plot(time, head)
-        plt.plot(recovery_time, recovery_head)
-        plt.legend(["All test data", "Recovery Period"])
+        plt.plot(time, head, label="All test data")
+        plt.plot(recovery_time, recovery_head, label="Recovery Period")
+        plt.axhline(
+            static_level,
+            linestyle="--",
+            color="gray",
+            alpha=0.35,
+            linewidth=0.8,
+            label=static_label,
+        )
+        plt.legend()
+        plt.text(
+            0.99,
+            static_level,
+            f"  {static_level:.3f} ft",
+            transform=plt.gca().get_yaxis_transform(),
+            ha="left",
+            va="center",
+            fontsize=9,
+            color="gray",
+            alpha=0.85,
+        )
 
         plt.savefig(
-            os.path.join(
-                plot_folder,
-                fn,
-            )
+            os.path.join(plot_folder, fn),
+            dpi=FIG_SAVE_DPI,
+            bbox_inches="tight",
         )
         plt.close()
 

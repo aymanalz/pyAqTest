@@ -8,7 +8,7 @@ import pandas as pd
 from pyAqTest import Aquifer, SlugWell, Bouwer_Rice_1976, Butler_2003
 
 from .settings import Batch_Settings
-from .utils import insitu_to_csv
+from .utils import FIG_SAVE_DPI, insitu_to_csv
 from .report import gererate_report, make_schematic_plot
 from datetime import date
 
@@ -32,13 +32,10 @@ The standard format is csv file that should include the following columns:
 
 """
 
-# ``fit_plots/*.png`` are embedded in PDFs; use print-friendly resolution.
-FIT_PLOT_PNG_DPI = 300
-
-
 class Batch_Processing:
     def __init__(self, config_obj=None):
 
+        # read the config file
         self.config_file = None
         if isinstance(config_obj, str):
             config_file = config_obj
@@ -60,6 +57,7 @@ class Batch_Processing:
                 "config_obj must be a file name, dictionary, or ConfigParser object."
             )
 
+           
         self._populate_attributes()
         self.df_batch = pd.read_csv(self.batch_data_file)
 
@@ -95,6 +93,10 @@ class Batch_Processing:
                 f"The batch data file {self.batch_data_file} does not exist."
             )        
         
+        # check if yje df_batch has a column called "field"
+        if "field" not in self.df_batch.columns:
+            raise ValueError(f"The batch data file {self.batch_data_file} does not contain a column called 'field'.")
+
         self.df_batch = self.df_batch.set_index("field").transpose()
 
         if os.path.exists(self.output_folder):
@@ -105,13 +107,16 @@ class Batch_Processing:
         df_results = []
         failed_tests = []
         with tqdm(total=len(self.df_batch), desc="Processing tests") as pbar:
-            for irow, row in self.df_batch.iterrows():  
+            for irow, row in self.df_batch.iterrows(): 
+                #ow =self.df_batch.iloc[192] 
                 test_id = row.get("test_id")
                 aquifer_name = row.get("aquifer_name")
                 pbar.set_postfix_str(f"Processing {test_id} in aquifer {aquifer_name}")
                 # check if all values are na
                 if row.isna().all():
+                    print(f"All values are NA for test {test_id}")
                     continue
+
                 # if int(irow)> 4: # debug
                 #     pbar.update(1)
                 #     continue
@@ -123,6 +128,8 @@ class Batch_Processing:
                 water_table_depth = float(row.get("water_table_depth"))
                 anisotropy = float(row.get("anisotropy"))
                 well_name = row.get("well_name")
+                # if well_name in ['CER1_2_T1'] : # debug
+                #     vvv = 1
                 well_radius = float(row.get("well_radius"))
                 casing_radius = float(row.get("casing_radius"))
                 screen_length = float(row.get("screen_length"))
@@ -154,7 +161,6 @@ class Batch_Processing:
                         f"The test data file {test_data_file} does not contain '{time_col}' and '{head_col}' columns."
                     )
 
-                #print(f"Processing {test_id}: {aquifer_name}, {well_name}, {test_type}")
                 # todo: if pumping is implemented, we need to change this
                 aq = Aquifer(
                     name=aquifer_name,
@@ -193,13 +199,14 @@ class Batch_Processing:
                     slug_test = Butler_2003(name=test_id, aquifer=aq, slug_well=slug_well)
 
                 try:
+                    slug_test.static_level = test_data["Static Level"].values[0]
                     slug_test.analyze()
                     plots_dir = os.path.join(self.output_folder, "fit_plots")
                     if not (os.path.isdir(plots_dir)):
                         os.makedirs(plots_dir)
                     fig_file = os.path.join(plots_dir, test_id + ".png")
                     slug_test.viz_fig.savefig(
-                        fig_file, format="png", dpi=FIT_PLOT_PNG_DPI
+                        fig_file, format="png", dpi=FIG_SAVE_DPI
                     )
 
                     df_res = pd.concat(
@@ -475,7 +482,7 @@ def run_batch(
         if not (os.path.isdir(plots_dir)):
             os.makedirs(plots_dir)
         fig_file = os.path.join(plots_dir, test_id + ".png")
-        slug_test.viz_fig.savefig(fig_file, format="png", dpi=FIT_PLOT_PNG_DPI)
+        slug_test.viz_fig.savefig(fig_file, format="png", dpi=FIG_SAVE_DPI)
 
         df_res = pd.concat(
             [
@@ -494,14 +501,4 @@ def run_batch(
     return df_results
 
 
-# def run_batch_init(config_file=None):
-#     # check if file exist
-#     if not (os.path.exists(config_file)):
-#         raise FileNotFoundError(f"The file {config_file} does not exist.")
 
-#     try:
-#         config_obj = setting.read_config(config_file)
-#     except:
-#         raise ValueError(f"Error reading {config_file} file")
-
-#     run_batch(config_file=config_file)

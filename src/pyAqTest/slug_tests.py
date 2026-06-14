@@ -10,6 +10,7 @@ import math
 from scipy.stats import linregress
 from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
+from matplotlib.transforms import blended_transform_factory
 
 from pyAqTest import Aquifer
 from pyAqTest import SlugWell
@@ -18,6 +19,117 @@ from pyAqTest.utils import evaluate_regression_fit, harmonize_units, get_static_
 from pyAqTest.fit_utils import fit_regression
 
 
+# Slug fit figure styling (batch PNGs / compare PDFs).
+_SLUG_FIT_FIGSIZE = (7.0, 5.0)
+_SLUG_FIT_DATA_COLOR = "#2a6f7e"
+_SLUG_FIT_LINE_COLOR = "#d35400"
+_SLUG_FIT_GRID_ALPHA = 0.35
+# Shared left edge (axes fraction) for reference-line labels on the Bouwer–Rice plot.
+_LINE_LABEL_X_FRAC = 0.65
+_FIT_RANGE_NOTE = "Fitting range of $H/H_0$ is between 0.1 and 0.3"
+_FIT_RANGE_NOTE_X_FRAC = 0.97
+_FIT_RANGE_NOTE_Y_FRAC = 0.04
+
+
+def _style_slug_fit_axes(ax: plt.Axes) -> None:
+    ax.set_facecolor("#fafbfc")
+    ax.grid(True, which="both", linestyle="-", linewidth=0.6, alpha=_SLUG_FIT_GRID_ALPHA)
+    ax.set_axisbelow(True)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.spines["left"].set_color("#607d8b")
+    ax.spines["bottom"].set_color("#607d8b")
+    ax.tick_params(colors="#455a64", labelsize=10)
+
+
+def _set_axes_black_box(ax: plt.Axes, linewidth: float = 1.0) -> None:
+    for spine in ax.spines.values():
+        spine.set_visible(True)
+        spine.set_edgecolor("black")
+        spine.set_linewidth(linewidth)
+
+
+def _draw_slug_fit_reference_annotations(
+    ax: plt.Axes,
+    static_level: float,
+    length_unit: str,
+    *,
+    show_fit_range_lines: bool = True,
+) -> None:
+    """Reference lines, aligned labels, and optional fitting-range note."""
+    ax.axhline(1.0, color="blue", linestyle="--", linewidth=0.9, alpha=0.75, zorder=1)
+    if show_fit_range_lines:
+        ax.axhline(0.3, color="green", linestyle="--", linewidth=0.9, alpha=0.75, zorder=1)
+        ax.axhline(0.1, color="green", linestyle="--", linewidth=0.9, alpha=0.75, zorder=1)
+    text_xform = blended_transform_factory(ax.transAxes, ax.transData)
+    line_label_kw = dict(
+        transform=text_xform,
+        ha="left",
+        va="center",
+        fontsize=9,
+        color="#2c3e50",
+        bbox=dict(
+            boxstyle="round,pad=0.2",
+            facecolor="white",
+            edgecolor="none",
+            alpha=0.9,
+        ),
+        zorder=5,
+    )
+    ax.text(
+        _LINE_LABEL_X_FRAC,
+        1.0,
+        f"$H_0 =$: {static_level:.2f} {length_unit}",
+        **line_label_kw,
+    )
+    if show_fit_range_lines:
+        ax.text(_LINE_LABEL_X_FRAC, 0.3, "$H/H_0 = 0.30$", **line_label_kw)
+        ax.text(_LINE_LABEL_X_FRAC, 0.1, "$H/H_0 = 0.10$", **line_label_kw)
+        ax.text(
+            _FIT_RANGE_NOTE_X_FRAC,
+            _FIT_RANGE_NOTE_Y_FRAC,
+            _FIT_RANGE_NOTE,
+            transform=ax.transAxes,
+            ha="right",
+            va="bottom",
+            fontsize=7,
+            color="#78909c",
+            clip_on=True,
+            bbox=dict(
+                boxstyle="round,pad=0.25",
+                facecolor="white",
+                edgecolor="none",
+                alpha=0.95,
+            ),
+            zorder=5,
+        )
+
+def catch_data_issues(aq_typ, screen_top_depth, b, B,  water_table_depth):
+            if b > B: # this can happen if the screen length is greater than the aquifer thickness
+                #print(f"Warning: Screen length is greater than the aquifer thickness for test")
+                b = 0.99*B # we assume that part of the screen might be above the water table or aquitard top
+                #print(f"Warning: Screen length set to {b} feet")
+
+            # compute d
+            if aq_typ == "confined":
+                d = 1.0 # todo: this is a placeholder for now-- screen top is one foot below the aquitard top
+            else: # unconfined aquifer
+                d = water_table_depth - screen_top_depth
+                if d < 0: # if the screen top is above the water table, d = 0, but this cuase issue for Butler's model
+                    d = 1e-2
+                    # print(f"Warning: Screen top depth is greater than the water table depth for test")
+                    # print(f"Warning: Screen top depth set to {d} feet")
+            
+            #
+            if B - (d + b) <= 0:
+                #print(f"Warning: Aquifer thickness is less than the screen length for test")
+                b = 0.98*B
+                d = 0.01*B # make sure d>0
+                # print(f"Warning: Screen length set to {b} feet")
+                # print(f"Warning: Screen top depth set to {d} feet")
+            
+           
+            return b, B, d
 # todo: think about simplifying the code by assuming that all data is recovery data
 
 
@@ -171,74 +283,100 @@ class Bouwer_Rice_1976(AquiferTestBase):
         rc = self.slug_well.casing_radius
         rw = self.slug_well.well_radius
         anis = self.aquifer.anisotropy
-        d = gw_elv - sreen_top_elev
+        #d = gw_elv - sreen_top_elev # todo:this is ok for unconfined aquifers, but not for confined aquifers
+        # todo: for confined aquifers, d is the distance between the water table and the top of the screen
         b = np.abs(self.slug_well.screen_length)  # L
 
-        if d < 0:
-            d = 0
+        # if screen_bottom_elev > gw_elv:
+        #     print(f"Screen bottom elevation is above the water table for test {self.name}")
+        #     return None
 
-        # if self.slug_well.is_recovery_data:
-        #     rec_depth = np.abs(head - head[-1])
-        #     rec_time = time
-        # else:
-        #     rec_depth, rec_time = self.isolate_recovery(time, head, window_size=10)
+        # if d < 0:
+        #     d = 0
+        #     # means that portion of the screen is above the water table
+        #     b = gw_elv - screen_bottom_elev
+
+        b, B, d = catch_data_issues(self.aquifer.aquifer_type, 
+                                     self.slug_well.screen_top_depth, b, D, 
+                                     self.aquifer.water_table_depth
+                                    )
+        # if False:# this will fail for confined aquifers        
+        #     if D - (d + b) < 0:
+        #         b = D - d
+        #         print(f"Warning: Screen length is greater than the aquifer thickness for test {self.name}")
+            
 
         # get static level
-        static_level = get_static_level(head)
+        static_level = self.static_level
         dev_static = head - static_level
         H0 = dev_static[0]
         h_normalized = dev_static / H0
 
-        # min_non_zero = min(abs(x) for x in rec_depth if x != 0)
-        # rec_depth[rec_depth == 0] = min_non_zero
-        # if H0 is None:
-        #     H0 = rec_depth[0]
-
-        # h_h0 = rec_depth / H0
         mask = np.logical_and(h_normalized >= 0.1, h_normalized <= 0.3)
         mask2 = np.abs(h_normalized) > 10e-6
         mask = np.logical_and(mask2, mask)
 
-        if False:
-            fit_result = self.fit(x=time[mask], y=np.log(np.abs(h_normalized[mask])))
-        else:
-            fit_result = fit_regression(x=time[mask], y=np.log(np.abs(h_normalized[mask])))
-            if not(fit_result.success):
-                print(f"Fit failed for test {self.name}")
-                #
-                       
-       
-
+        fit_result = fit_regression(x=time[mask], y=np.log(np.abs(h_normalized[mask])))
+        if not(fit_result.success):
+            print(f"Fit failed for test {self.name}")                      
+     
 
         # plot
         if fit_result.success:
-            fig = plt.figure()
+            fig, ax = plt.subplots(figsize=_SLUG_FIT_FIGSIZE, facecolor="white")
             x = time[mask2]
             y = h_normalized[mask2]
             y_fit = fit_result.slope * x + fit_result.intercept
-            plt.scatter(x, y, label="Data")
-            plt.plot(x, np.exp(y_fit), color="red", label="Fitted Line")
-            plt.xlabel("Time")
-            plt.ylabel(r"$\frac{H}{H_0}$")
-            plt.yscale("log")
-            plt.grid()
-            plt.legend()
-            plt.title(f"Linear Fit for test {self.name}")
-            plt.ylim(1e-6, 1.2)
+            ax.scatter(
+                x,
+                y,
+                s=32,
+                facecolors="none",
+                edgecolors="blue",
+                linewidths=1.0,
+                alpha=0.9,
+                label="Test Data",
+                zorder=2,
+            )
+            ax.plot(
+                x,
+                np.exp(y_fit),
+                color=_SLUG_FIT_LINE_COLOR,
+                linewidth=2.2,
+                label="Fitted line",
+                zorder=3,
+            )
+            y_data_max = float(np.nanmax(y)) if y.size else 1.0
+            y_data_max = max(y_data_max, 1.0)
+            ymax = min(max(y_data_max * 1.3, 1.55), 5.0)
+            ax.set_xlabel(f"Time ({self.slug_well.time_unit})", fontsize=11)
+            ax.set_ylabel(r"Normalized Head ($H/H_0$)", fontsize=11)
+            ax.set_yscale("log")
+            ax.set_ylim(1e-6, ymax)
+            _style_slug_fit_axes(ax)
+            _set_axes_black_box(ax)
+            _draw_slug_fit_reference_annotations(
+                ax, static_level, self.slug_well.length_unit
+            )
+            ax.set_title(
+                f"Test Name: {self.name}",
+                fontsize=12,
+                fontweight="bold",
+                color="#2c3e50",
+                pad=10,
+            )
+            ax.legend(
+                frameon=True,
+                framealpha=0.95,
+                edgecolor="#cfd8dc",
+                fontsize=10,
+                loc="best",
+            )
+            fig.tight_layout()
             self.viz_fig = fig
-            plt.close()
-
-            # evaluate model fit
-            if False:
-                y_fit = fit_result.slope * time + fit_result.intercept
-                fit_states = evaluate_regression_fit(
-                    y_obs=h_normalized[mask],
-                    y_pred=np.exp(y_fit[mask]),
-                    num_predictors=1,
-                    verbose=False,
-                )
-            else:
-                fit_states = fit_result.stats
+            plt.close(fig)
+       
+            fit_states = fit_result.stats
 
             rw_star = rw * (anis**0.5)
             x = np.log10(b / rw_star)
@@ -252,7 +390,7 @@ class Bouwer_Rice_1976(AquiferTestBase):
             C = np.dot(xs, betaC)
 
             part1 = 1.1 / (np.log((d + b) / rw_star))
-            term6 = np.log(np.abs(D - (d + b)) / rw_star) # todo: handle negative values
+            term6 = np.log(np.abs(D - (d + b)) / rw_star) 
             if term6 > 6.0:
                 term6 = 6.0
             part2 = (A + B * term6) / (b / rw_star)
@@ -385,9 +523,10 @@ class Butler_2003(AquiferTestBase):
 
     def analyze(self) -> None:
 
+
         radius_of_transducer_cable = 0.003  # todo: make it a parameter
         if self.slug_well.length_unit == "m":
-            g = 9.81  # todo: depends on units
+            g = 9.81  
         else:
             g = 32.174
 
@@ -395,17 +534,49 @@ class Butler_2003(AquiferTestBase):
         depth_screen_bottom = (
             self.slug_well.screen_top_depth + self.slug_well.screen_length
         )
+
+
+        
+
+
+
         water_table_depth = self.aquifer.water_table_depth
         b = self.slug_well.screen_length
         B = self.aquifer.saturated_thickness
 
+        b, B, d = catch_data_issues(self.aquifer.aquifer_type, 
+                                     water_table_depth, b, B, 
+                                     water_table_depth
+                                    )
+        # if b > B:
+        #     print(f"Warning: Screen length is greater than the aquifer thickness for test {self.name}")
+        #     b = 0.99*B
+        #     print(f"Warning: Screen length set to {b} feet")
+
         # Top of Screen to Water Table
-        d = self.aquifer.water_table_depth - self.slug_well.screen_top_depth
-        d = np.abs(d)
+        # if self.aquifer.aquifer_type == "confined": # todo
+        #     d = 1.0 # todo: this is a placeholder for now-- screen top is one foot below the aquitard top
+        # else:
+        #     d = self.aquifer.water_table_depth - self.slug_well.screen_top_depth
+        #     if d < 0:
+        #         d = 1e-2
+        #         print(f"Warning: Screen top depth is greater than the water table depth for test {self.name}")
+        #         print(f"Warning: Screen top depth set to {d} feet")
+        #d = self.aquifer.water_table_depth - self.slug_well.screen_top_depth
+        #d = np.abs(d)
         rw = self.slug_well.well_radius
+        rw = rw * (self.aquifer.anisotropy**0.5)
         rnc = self.slug_well.casing_radius
         head = self.slug_well.head
         time = self.slug_well.time
+        # d cannot be greater than the aquifer thickness
+      
+        # if B - (d + b) <= 0:
+        #     print(f"Warning: Aquifer thickness is less than the screen length for test {self.name}")
+        #     b = 0.95*B
+        #     d = 0.04*B # make sure d>0
+        #     print(f"Warning: Screen length set to {b} feet")
+        #     print(f"Warning: Screen top depth set to {d} feet")
 
         # get static level
         static_level = get_static_level(head)
@@ -419,35 +590,83 @@ class Butler_2003(AquiferTestBase):
             cd = popt[0]
             modfac = popt[1]
         else:
-            fit_result = fit_regression(time, h_normalized, method='nonlinear', 
-            model=self.model, p0=p0)
-            if not(fit_result.success):
-                raise ValueError(f"Fit failed for test {self.name}")
-            cd = fit_result.params[0]
-            modfac = fit_result.params[1]
-
+            minV = 1e-5
+            maxV = 5000
+            counter = 0
+            while True:
+                fit_result = fit_regression(
+                    time,
+                    h_normalized,
+                    method="nonlinear",
+                    model=self.model,
+                    p0=[1.99, 1.0],
+                    bounds=([minV, minV], [maxV,maxV]),
+                )
+                if not(fit_result.success):
+                    minV = minV * 10
+                    maxV = maxV /10 
+                    counter += 1
+                    if counter > 3:
+                        raise ValueError(f"Fit failed for test {self.name}")
+                    continue
+                else:                     
+                    cd = fit_result.params[0]
+                    modfac = fit_result.params[1]
+                    break
        
 
         h_ = self.model(time, cd, modfac)
 
         # plot
-        fig = plt.figure()
-        plt.scatter(
+        fig, ax = plt.subplots(figsize=_SLUG_FIT_FIGSIZE, facecolor="white")
+        ax.scatter(
             time,
             h_normalized,
-            label="Normalized Data",
+            s=32,
             facecolors="none",
-            edgecolors="red",
-            s=10,
+            edgecolors="blue",
+            linewidths=1.0,
+            alpha=0.9,
+            label="Test Data",
+            zorder=2,
         )
-        plt.plot(time, h_, label="Fitted Model (Type Curve)")
-        plt.xlabel("Time")
-        plt.ylabel(r"Normalized head \n $\frac{H}{H_0}$")
-        plt.grid()
-        plt.legend()
-        plt.title(f"Data Fit for test {self.name}")
+        ax.plot(
+            time,
+            h_,
+            color=_SLUG_FIT_LINE_COLOR,
+            linewidth=2.2,
+            label="Fitted model",
+            zorder=3,
+        )
+        ax.set_xlabel(f"Time ({self.slug_well.time_unit})", fontsize=11)
+        ax.set_ylabel(r"Normalized Head ($H/H_0$)", fontsize=11)
+        y_all = np.concatenate([h_normalized, h_])
+        y_min = float(np.nanmin(y_all))
+        y_max = float(np.nanmax(y_all))
+        pad = 0.08 * (y_max - y_min if y_max > y_min else max(abs(y_max), 1.0))
+        ax.set_ylim(y_min - pad, y_max + pad)
+        _style_slug_fit_axes(ax)
+        _set_axes_black_box(ax)
+        _draw_slug_fit_reference_annotations(
+            ax, static_level, self.slug_well.length_unit, show_fit_range_lines=False
+        )
+        ax.set_title(
+            f"Butler fit: {self.name}",
+            fontsize=12,
+            fontweight="bold",
+            color="#2c3e50",
+            pad=10,
+        )
+        ax.legend(
+            frameon=True,
+            framealpha=0.95,
+            edgecolor="#cfd8dc",
+            fontsize=10,
+            loc="best",
+        )
+        fig.tight_layout()
         self.viz_fig = fig
-        plt.close()
+        plt.close(fig)
 
         # evaluate model fit
         if False:
@@ -460,14 +679,14 @@ class Butler_2003(AquiferTestBase):
         # compute k
         tfac = modfac
 
-        N8 = 32.174 / (tfac**2)
+        N8 = g / (tfac**2) # Le 
         N9 = depth_screen_bottom - (b + water_table_depth) + b / 2 * (rnc**2 / rw**2)
         N10 = abs(N8 - N9) / N9
 
         # Already defined in names: rc = I9, ar = I11
-        rc = math.sqrt(rnc**2 - rtc**2)
-        ar = b / rw
-        V7 = (ar / 2) + math.sqrt(1 + (ar / 2) ** 2)
+        rc = math.sqrt(rnc**2 - rtc**2)  # Effective radius (I9)
+        ar = b / rw  # Aspect ratio (I11)
+        V7 = (ar / 2) + math.sqrt(1 + (ar / 2) ** 2) # Bracketted quantity
 
         # V18 polynomial
         V18 = (
@@ -489,14 +708,14 @@ class Butler_2003(AquiferTestBase):
         )
 
         # T21 and U24 logic
-        T21 = 1.1 / math.log((d + b) / rw)
+        T21 = 1.1 / math.log((d + b) / rw)       
         X24 = math.log(np.abs(B - (d + b)) / rw)
         U24 = min(6, X24)
         U23 = (V18 + V19 * U24) / ar
         S18 = 1 / (T21 + U23)
 
         # Hydraulic conductivity (kr) calculations
-        kr_conf = (tfac * rc**2 * math.log(V7)) / (2 * b * cd)
+        kr_conf = (tfac * (rc**2) * math.log(V7)) / (2 * b * cd)
         kr_unconf = (tfac * rc**2 * S18) / (2 * b * cd)
 
         if self.aquifer.aquifer_type.lower() == "unconfined":

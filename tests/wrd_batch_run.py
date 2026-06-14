@@ -1,5 +1,6 @@
 import pyAqTest
 
+
 ini_filename = r"C:\workspace\projects\pump_tests\WRD_Slug_Data\slug_test_config_Bouwer_Rice.ini"
 batch = pyAqTest.Batch_Processing(config_obj=ini_filename)
 batch.run_batch()
@@ -8,4 +9,6 @@ batch.run_batch()
 ini_filename = r"C:\workspace\projects\pump_tests\WRD_Slug_Data\slug_test_config_butler.ini"
 batch = pyAqTest.Batch_Processing(config_obj=ini_filename)
 batch.run_batch()
+
+vv = 1
 #batch.generate_html_report()
